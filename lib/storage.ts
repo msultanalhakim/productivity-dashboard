@@ -2,8 +2,9 @@ import type { AppState } from "./store"
 import { supabase } from "./supabase"
 
 const SESSION_KEY = "command-center-session"
-const USER_ID_KEY = "command-center-user-id"
-const IDLE_TIMEOUT = 60 * 60 * 1000 // 1 hour in milliseconds
+const IDLE_TIMEOUT = 60 * 40 * 1000 // 40 minutes in milliseconds
+
+const FIXED_DB_ID = "dashboard"
 
 export const DEFAULT_STATE: AppState = {
   mood: null,
@@ -21,20 +22,9 @@ export const DEFAULT_STATE: AppState = {
   lastDailyReset: null,
   lastWeeklyReset: null,
   currentMonth: new Date().toISOString(),
-  password: "admin",
+  password: "sultan",
 }
 
-// ===== USER ID MANAGEMENT =====
-function getUserId(): string {
-  if (typeof window === "undefined") return ""
-  
-  let userId = localStorage.getItem(USER_ID_KEY)
-  if (!userId) {
-    userId = generateSessionId()
-    localStorage.setItem(USER_ID_KEY, userId)
-  }
-  return userId
-}
 
 // Session ID generator
 function generateSessionId(): string {
@@ -103,13 +93,11 @@ export async function loadState(): Promise<AppState> {
   }
 
   try {
-    const userId = getUserId()
-    
     const { data, error } = await supabase
       .from('app_state')
       .select('data')
-      .eq('user_id', userId)
-      .single()
+      .eq('user_id', FIXED_DB_ID)
+      .maybeSingle()
 
     if (!error && data && data.data) {
       const state = { ...DEFAULT_STATE, ...data.data } as AppState
@@ -149,14 +137,11 @@ export async function saveState(state: Partial<AppState>): Promise<void> {
     // Update cache immediately
     stateCache = updated
     lastFetch = Date.now()
-    
-    // Save ke Supabase
-    const userId = getUserId()
-    
+  
     const { error } = await supabase
       .from('app_state')
       .upsert({
-        user_id: userId,
+        user_id: FIXED_DB_ID,
         data: updated as any,
         updated_at: new Date().toISOString(),
       }, {

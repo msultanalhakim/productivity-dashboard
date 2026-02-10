@@ -402,7 +402,7 @@ export function MonthlyTaskProgress({
                       }`}
                     >
                       <div className="flex flex-col items-center min-w-[50px]">
-                        <span className={`text-base md:text-lg md:text-xl md:text-2xl font-bold ${
+                        <span className={`text-xl md:text-2xl font-bold ${
                           isDaySunday ? "text-crimson" : "text-foreground"
                         }`}>{day}</span>
                         <span className={`text-[10px] uppercase tracking-wide ${
@@ -468,7 +468,7 @@ export function MonthlyTaskProgress({
                 <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-cyan/10 to-transparent p-4 border border-cyan/20">
                   <Calendar className="h-6 w-6 text-cyan" />
                   <div>
-                    <div className="text-base md:text-lg md:text-xl font-bold text-foreground">
+                    <div className="text-lg md:text-xl font-bold text-foreground">
                       {selectedDay} {getMonthName(currentDate).split(" ")[0]}
                     </div>
                     <div className="text-sm text-muted-foreground">
