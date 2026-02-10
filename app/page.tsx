@@ -434,63 +434,35 @@ function CommandCenterInner() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Scroll to Top Button - tetap sama */}
-      
-      {/* Quick Menu Toggle */}
-      <div className="fixed right-4 top-4 z-40 md:right-6 md:top-6">
-        <div className="relative">
-          <button
-            onClick={() => setShowQuickMenu(!showQuickMenu)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground backdrop-blur-xl transition-colors hover:text-primary"
-            aria-label="Menu cepat"
+      {/* Scroll to Top Button */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={scrollToTop}
+            className="fixed bottom-20 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card text-cyan shadow-xl backdrop-blur-xl transition-colors hover:bg-cyan hover:text-background md:bottom-6 md:right-6"
+            aria-label="Scroll to top"
           >
-            <MoreVertical className="h-5 w-5" />
-          </button>
-
-          {/* Dropdown Menu */}
-          <AnimatePresence>
-            {showQuickMenu && (
-              <>
-                {/* Backdrop */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => setShowQuickMenu(false)}
-                  className="fixed inset-0 z-30"
-                />
-
-                {/* Menu Items */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-12 z-40 flex flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-xl backdrop-blur-xl"
-                >
-                  <div className="flex items-center gap-2">
-                    <MusicPlayer />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ThemeToggle />
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowSettings(true)
-                      setShowQuickMenu(false)
-                    }}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground border border-[hsl(var(--border))] transition-colors hover:bg-secondary hover:text-foreground"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </button>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        </div>
+            <ArrowUp className="h-5 w-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+      
+      {/* Top Right Controls - Single Layout for All Screens */}
+      <div className="fixed right-4 top-4 z-40 flex items-center gap-2 md:right-6 md:top-6">
+        <MusicPlayer />
+        <ThemeToggle />
+        <button
+          onClick={() => setShowSettings(true)}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground backdrop-blur-xl transition-colors hover:text-primary"
+          aria-label="Settings"
+        >
+          <Settings className="h-5 w-5" />
+        </button>
       </div>
 
-      {/* Rest of the component tetap sama */}
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
       <main className="w-full px-4 py-4 pb-24 md:px-8 md:py-6">

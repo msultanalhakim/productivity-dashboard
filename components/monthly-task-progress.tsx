@@ -102,17 +102,36 @@ export function MonthlyTaskProgress({
     
     const record = dailyHistory.find((h) => h.date === dateStr)
     
+    // Check if this day is today or in the future
+    const dayDate = new Date(year, month, day)
+    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const isToday = dayDate.getTime() === todayDate.getTime()
+    const isFuture = dayDate.getTime() > todayDate.getTime()
+    
+    // If no record, return no-data
     if (!record) return "no-data"
     
     const hasDailyTasks = record.totalTasks > 0
     const hasWeeklyGoals = (record.weeklyGoalsTotal ?? 0) > 0
     
+    // If no tasks and no goals, return no-data
     if (!hasDailyTasks && !hasWeeklyGoals) return "no-data"
     
     const dailyComplete = hasDailyTasks ? record.completedTasks === record.totalTasks : true
     const weeklyComplete = hasWeeklyGoals ? record.weeklyGoalsCompleted === record.weeklyGoalsTotal : true
     
+    // All tasks completed
     if (dailyComplete && weeklyComplete) return "complete"
+    
+    // If today or future, don't mark as incomplete yet
+    if (isToday || isFuture) {
+      // If some tasks completed, it's partial
+      if (record.completedTasks > 0 || (record.weeklyGoalsCompleted ?? 0) > 0) return "partial"
+      // Otherwise, just return no-data (neutral state for today/future)
+      return "no-data"
+    }
+    
+    // For past days: check if partial or incomplete
     if (record.completedTasks > 0 || (record.weeklyGoalsCompleted ?? 0) > 0) return "partial"
     return "incomplete"
   }
