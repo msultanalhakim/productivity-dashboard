@@ -2,9 +2,11 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Eye, EyeOff, Lock, Check } from "lucide-react"
+import { X, Eye, EyeOff, Lock, Check, LogOut } from "lucide-react"
 import { verifyPassword, updatePassword } from "@/lib/storage"
 import { useToast } from "./toast-notification"
+import { logout } from "@/lib/storage"
+import { useRouter } from "next/navigation" 
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -12,6 +14,7 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+  const router = useRouter()
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -77,6 +80,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     setConfirmPassword("")
     setError("")
     onClose()
+  }
+
+  const handleLogout = () => {
+    if (confirm("Yakin ingin logout? Data tetap tersimpan dan bisa diakses kembali setelah login.")) {
+      logout()
+      router.refresh()  // atau window.location.reload()
+    }
   }
 
   return (
@@ -241,6 +251,19 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </button>
               </div>
             </form>
+            <div className="mt-6 border-t border-border pt-6">
+              <h3 className="mb-3 text-sm font-semibold text-foreground">Account</h3>
+              <button
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 rounded-xl border border-crimson/30 bg-crimson/5 px-4 py-3 text-crimson transition-all hover:border-crimson hover:bg-crimson/10"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="font-medium">Logout</span>
+              </button>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Data Anda tetap tersimpan dan bisa diakses kembali setelah login
+              </p>
+            </div>
           </motion.div>
         </motion.div>
       )}

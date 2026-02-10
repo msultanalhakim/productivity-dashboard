@@ -18,12 +18,11 @@ import { GlassCard } from "@/components/glass-card"
 import { LockScreen } from "@/components/lock-screen"
 import { SettingsModal } from "@/components/settings-modal"
 import { ToastProvider, useToast } from "@/components/toast-notification"
-import { useAutoLock } from "@/hooks/use-auto-lock"
 import {
   loadState,
   saveState,
-  isSessionValid,
-  getCurrentSessionId,
+  isAuthenticated,
+  setAuthenticated,
   performDailyReset,
   performWeeklyReset,
   needsDailyReset,
@@ -87,13 +86,6 @@ function CommandCenterInner() {
 
   const { toast } = useToast()
 
-  useAutoLock({
-    onLock: () => {
-      setIsLocked(true)
-      toast("Sesi berakhir karena tidak ada aktivitas", "warning")
-    },
-  })
-
   // Scroll to top detection
   useEffect(() => {
     const handleScroll = () => {
@@ -111,13 +103,15 @@ function CommandCenterInner() {
   // Initial load from Supabase
   useEffect(() => {
     async function initializeApp() {
-      if (!isSessionValid() || !getCurrentSessionId()) {
+      // Check if authenticated
+      if (!isAuthenticated()) {
         setIsLocked(true)
         setIsLoading(false)
         return
       }
-
+  
       try {
+        // Load state from Supabase
         const state = await loadState()
         
         setMood(state.mood)
@@ -136,7 +130,7 @@ function CommandCenterInner() {
         setWeeklyProgress(state.weeklyProgress)
         setDailyNotes(state.dailyNotes || [])
         setCurrentMonth(new Date(state.currentMonth))
-
+  
         // Check for daily reset
         if (await needsDailyReset()) {
           await performDailyReset()
@@ -146,7 +140,7 @@ function CommandCenterInner() {
           setMood(updatedState.mood)
           toast("Daily tasks telah direset", "info")
         }
-
+  
         // Check for weekly reset
         if (await needsWeeklyReset()) {
           await performWeeklyReset()
@@ -160,7 +154,7 @@ function CommandCenterInner() {
           })))
           toast("Weekly goals telah direset", "info")
         }
-
+  
         setIsLocked(false)
       } catch (error) {
         console.error("Error initializing app:", error)
@@ -169,13 +163,13 @@ function CommandCenterInner() {
         setIsLoading(false)
       }
     }
-
+  
     initializeApp()
   }, [toast])
-
+  
   // Auto-save to Supabase with debounce
   useEffect(() => {
-    if (isLocked || isLoading) return
+    if (isLoading) return  // Only check isLoading, not isLocked
     
     // Clear existing timeout
     if (saveTimeoutRef.current) {
@@ -184,6 +178,8 @@ function CommandCenterInner() {
 
     // Debounce save - wait 1 second after last change
     saveTimeoutRef.current = setTimeout(async () => {
+      if (!isAuthenticated()) return  // Add auth check
+      
       try {
         await saveState({
           mood,
@@ -229,13 +225,11 @@ function CommandCenterInner() {
     weeklyProgress,
     dailyNotes,
     currentMonth,
-    isLocked,
-    isLoading,
+    isLoading,  // Removed isLocked from dependencies
     toast,
   ])
 
   // ✅ FIXED: Update daily history when tasks/goals change
-  // Using useCallback to avoid recreating this logic
   const updateTodayHistory = useCallback(() => {
     if (isLocked || isLoading) return
     
@@ -265,7 +259,7 @@ function CommandCenterInner() {
         totalTasks: dailyTasks.length,
         completedTasks: dailyTasks.filter((t) => t.done).length,
         weeklyGoalsCompleted: completedGoals.length,
-        weeklyGoalsTotal: todayGoals.length, // Only today's goals
+        weeklyGoalsTotal: todayGoals.length,
         completedGoalsList,
         failedTasksList: failedTasks.map(t => t.text),
         failedGoalsList: failedGoals.map(g => g.text),
@@ -297,7 +291,6 @@ function CommandCenterInner() {
         return prev.map((h) => (h.date === today ? newRecord : h))
       }
       
-      // No changes, return previous state to avoid re-render
       return prev
     })
   }, [dailyTasks, weeklyGoals, dailyNotes, isLocked, isLoading])
@@ -310,14 +303,10 @@ function CommandCenterInner() {
   // Handler to save daily note
   const handleSaveDailyNote = useCallback(async (day: string, note: string) => {
     try {
-      // Save to Supabase
       await saveDailyNoteForToday(day, note)
-      
-      // Reload state to get updated notes
       const updatedState = await loadState()
       setDailyNotes(updatedState.dailyNotes || [])
       setDailyHistory(updatedState.dailyHistory)
-      
       toast("Catatan berhasil disimpan", "success")
       console.log(`[handleSaveDailyNote] Note saved for ${day}:`, note)
     } catch (error) {
@@ -440,7 +429,6 @@ function CommandCenterInner() {
 
   const activeGoalsCount = processedGoals.filter((g) => g.status === "active").length
   
-  // Get top 3 nearest deadline active goals
   const nearest3ActiveGoals = processedGoals
     .filter((g) => g.status === "active")
     .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
@@ -459,7 +447,14 @@ function CommandCenterInner() {
   }
 
   if (isLocked) {
-    return <LockScreen onUnlock={() => setIsLocked(false)} />
+    return (
+      <LockScreen 
+        onUnlock={() => {
+          setAuthenticated(true)
+          setIsLocked(false)
+        }} 
+      />
+    )
   }
 
   const navItems: { id: NavSection; icon: any; label: string }[] = [
@@ -487,7 +482,7 @@ function CommandCenterInner() {
         )}
       </AnimatePresence>
       
-      {/* Top Right Controls - Single Layout for All Screens */}
+      {/* Top Right Controls */}
       <div className="fixed right-4 top-4 z-40 flex items-center gap-2 md:right-6 md:top-6">
         <MusicPlayer />
         <ThemeToggle />
@@ -765,7 +760,6 @@ function CommandCenterInner() {
                 className="flex w-full min-w-0 flex-col gap-3 md:gap-4"
                 ref={goalRef}
               >
-                {/* Top Row - Progress Cards */}
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                   <div className="col-span-1">
                     <DailyProgress
@@ -780,7 +774,6 @@ function CommandCenterInner() {
                   </div>
                 </div>
 
-                {/* Long Term Goals */}
                 <LongTermGoals
                   goals={processedGoals}
                   onAdd={addLongTermGoal}

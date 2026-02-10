@@ -3,14 +3,10 @@ import { supabase } from "./supabase"
 import { 
   DAYS_ID, 
   getDayNameFromDate, 
-  recalculateWeeklyGoalsInHistory 
 } from "./store"
 
-const SESSION_KEY = "command-center-session"
-const LAST_ACTIVITY_KEY = "command-center-activity"
-const IDLE_TIMEOUT = 60 * 40 * 1000 // 40 minutes in milliseconds
-
 const FIXED_DB_ID = "dashboard"
+const AUTH_KEY = "command-center-authenticated"
 
 export const DEFAULT_STATE: AppState = {
   mood: null,
@@ -31,101 +27,35 @@ export const DEFAULT_STATE: AppState = {
   password: "sultan",
 }
 
-// ===== IMPROVED SESSION MANAGEMENT =====
+// ===== SIMPLE AUTHENTICATION (NO SESSION MANAGEMENT) =====
 
 /**
- * Generate session ID
+ * Check if user is authenticated (logged in)
  */
-function generateSessionId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9)
-}
-
-/**
- * Get current session ID from localStorage
- */
-export function getCurrentSessionId(): string | null {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem(SESSION_KEY)
-}
-
-/**
- * Create new session and store in localStorage
- */
-export function createSession(): string {
-  if (typeof window === "undefined") return ""
-  const sessionId = generateSessionId()
-  localStorage.setItem(SESSION_KEY, sessionId)
-  localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString())
-  console.log("[Session] Created new session:", sessionId)
-  return sessionId
-}
-
-/**
- * Check if session is valid (not expired due to inactivity)
- */
-export function isSessionValid(): boolean {
+export function isAuthenticated(): boolean {
   if (typeof window === "undefined") return false
-  
-  const sessionId = getCurrentSessionId()
-  if (!sessionId) {
-    console.log("[Session] No session ID found")
-    return false
-  }
-
-  const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY)
-  if (!lastActivity) {
-    console.log("[Session] No last activity timestamp")
-    return false
-  }
-
-  const timeSinceActivity = Date.now() - parseInt(lastActivity)
-  const isValid = timeSinceActivity < IDLE_TIMEOUT
-  
-  if (!isValid) {
-    const minutesIdle = Math.floor(timeSinceActivity / 1000 / 60)
-    console.log("[Session] Session expired - idle for", minutesIdle, "minutes")
-  }
-  
-  return isValid
+  return localStorage.getItem(AUTH_KEY) === "true"
 }
 
 /**
- * Update last activity timestamp
+ * Mark user as authenticated
  */
-export function updateActivity(): void {
+export function setAuthenticated(value: boolean): void {
   if (typeof window === "undefined") return
-  localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString())
-}
-
-/**
- * Clear session (manual logout only)
- */
-export function clearSession(): void {
-  if (typeof window === "undefined") return
-  console.log("[Session] Clearing session (manual logout)")
-  localStorage.removeItem(SESSION_KEY)
-  localStorage.removeItem(LAST_ACTIVITY_KEY)
-}
-
-/**
- * IMPROVED: Restore or create session
- * This ensures we always have a session to work with
- */
-export function ensureSession(): string {
-  if (typeof window === "undefined") return ""
-  
-  let sessionId = getCurrentSessionId()
-  
-  if (!sessionId) {
-    console.log("[Session] No session found, creating new one")
-    sessionId = createSession()
+  if (value) {
+    localStorage.setItem(AUTH_KEY, "true")
+    console.log("[Auth] User authenticated")
   } else {
-    console.log("[Session] Existing session found:", sessionId)
-    // Update activity to extend session
-    updateActivity()
+    localStorage.removeItem(AUTH_KEY)
+    console.log("[Auth] User logged out")
   }
-  
-  return sessionId
+}
+
+/**
+ * Clear authentication (logout)
+ */
+export function logout(): void {
+  setAuthenticated(false)
 }
 
 // ===== SUPABASE DATABASE STORAGE =====
@@ -137,7 +67,7 @@ const CACHE_DURATION = 1000 // 1 second
 
 /**
  * Load state from Supabase
- * IMPROVED: Always tries to load, regardless of session validity
+ * Always tries to load data, regardless of auth status
  */
 export async function loadState(): Promise<AppState> {
   if (typeof window === "undefined") return DEFAULT_STATE
