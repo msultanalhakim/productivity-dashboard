@@ -31,42 +31,50 @@ export const DEFAULT_STATE: AppState = {
   password: "sultan",
 }
 
-// Session ID generator
+// ===== IMPROVED SESSION MANAGEMENT =====
+
+/**
+ * Generate session ID
+ */
 function generateSessionId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9)
 }
 
-// Get current session ID
+/**
+ * Get current session ID from localStorage
+ */
 export function getCurrentSessionId(): string | null {
   if (typeof window === "undefined") return null
-  // FIXED: Use localStorage instead of sessionStorage so it persists across tabs and browser sessions
   return localStorage.getItem(SESSION_KEY)
 }
 
-// Create new session
+/**
+ * Create new session and store in localStorage
+ */
 export function createSession(): string {
   if (typeof window === "undefined") return ""
   const sessionId = generateSessionId()
-  // FIXED: Store in localStorage so it persists
   localStorage.setItem(SESSION_KEY, sessionId)
   localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString())
-  console.log("[createSession] New session created:", sessionId)
+  console.log("[Session] Created new session:", sessionId)
   return sessionId
 }
 
-// Check if session is valid
+/**
+ * Check if session is valid (not expired due to inactivity)
+ */
 export function isSessionValid(): boolean {
   if (typeof window === "undefined") return false
   
   const sessionId = getCurrentSessionId()
   if (!sessionId) {
-    console.log("[isSessionValid] No session ID found")
+    console.log("[Session] No session ID found")
     return false
   }
 
   const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY)
   if (!lastActivity) {
-    console.log("[isSessionValid] No last activity found")
+    console.log("[Session] No last activity timestamp")
     return false
   }
 
@@ -74,46 +82,75 @@ export function isSessionValid(): boolean {
   const isValid = timeSinceActivity < IDLE_TIMEOUT
   
   if (!isValid) {
-    console.log("[isSessionValid] Session expired. Idle for:", Math.floor(timeSinceActivity / 1000 / 60), "minutes")
+    const minutesIdle = Math.floor(timeSinceActivity / 1000 / 60)
+    console.log("[Session] Session expired - idle for", minutesIdle, "minutes")
   }
   
   return isValid
 }
 
-// Update last activity
+/**
+ * Update last activity timestamp
+ */
 export function updateActivity(): void {
   if (typeof window === "undefined") return
   localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString())
 }
 
-// Clear session (only called on manual logout, not on idle timeout)
+/**
+ * Clear session (manual logout only)
+ */
 export function clearSession(): void {
   if (typeof window === "undefined") return
-  console.log("[clearSession] Clearing session (manual logout)")
+  console.log("[Session] Clearing session (manual logout)")
   localStorage.removeItem(SESSION_KEY)
   localStorage.removeItem(LAST_ACTIVITY_KEY)
 }
 
+/**
+ * IMPROVED: Restore or create session
+ * This ensures we always have a session to work with
+ */
+export function ensureSession(): string {
+  if (typeof window === "undefined") return ""
+  
+  let sessionId = getCurrentSessionId()
+  
+  if (!sessionId) {
+    console.log("[Session] No session found, creating new one")
+    sessionId = createSession()
+  } else {
+    console.log("[Session] Existing session found:", sessionId)
+    // Update activity to extend session
+    updateActivity()
+  }
+  
+  return sessionId
+}
+
 // ===== SUPABASE DATABASE STORAGE =====
 
-// In-memory cache untuk menghindari multiple calls
+// In-memory cache
 let stateCache: AppState | null = null
 let lastFetch: number = 0
-const CACHE_DURATION = 1000 // 1 second cache
+const CACHE_DURATION = 1000 // 1 second
 
 /**
- * Load state dari Supabase
- * Returns Promise<AppState>
+ * Load state from Supabase
+ * IMPROVED: Always tries to load, regardless of session validity
  */
 export async function loadState(): Promise<AppState> {
   if (typeof window === "undefined") return DEFAULT_STATE
 
-  // Return cache if still fresh
+  // Return cache if fresh
   if (stateCache && Date.now() - lastFetch < CACHE_DURATION) {
+    console.log("[Storage] Returning cached state")
     return stateCache
   }
 
   try {
+    console.log("[Storage] Fetching state from Supabase...")
+    
     const { data, error } = await supabase
       .from('app_state')
       .select('data')
@@ -124,36 +161,35 @@ export async function loadState(): Promise<AppState> {
       const state = { ...DEFAULT_STATE, ...data.data } as AppState
       stateCache = state
       lastFetch = Date.now()
-      console.log("[loadState] Loaded state from Supabase")
+      console.log("[Storage] ✅ Successfully loaded state from Supabase")
       return state
     }
 
-    // Jika belum ada data, return default
+    // No data found - first time user
     if (error?.code === 'PGRST116') {
-      // No rows found - first time user
       stateCache = DEFAULT_STATE
       lastFetch = Date.now()
-      console.log("[loadState] No data found, using default state")
+      console.log("[Storage] No data in Supabase, using default state")
       return DEFAULT_STATE
     }
 
-    console.error("Error loading from Supabase:", error)
+    console.error("[Storage] ❌ Error loading from Supabase:", error)
     return DEFAULT_STATE
+    
   } catch (error) {
-    console.error("Error loading state:", error)
+    console.error("[Storage] ❌ Exception loading state:", error)
     return DEFAULT_STATE
   }
 }
 
 /**
- * Save state ke Supabase
- * Returns Promise<void>
+ * Save state to Supabase
  */
 export async function saveState(state: Partial<AppState>): Promise<void> {
   if (typeof window === "undefined") return
 
   try {
-    // Load current state from cache or database
+    // Load current state
     const current = stateCache || await loadState()
     const updated = { ...current, ...state }
     
@@ -172,24 +208,25 @@ export async function saveState(state: Partial<AppState>): Promise<void> {
       })
 
     if (error) {
-      console.error("Error saving to Supabase:", error)
+      console.error("[Storage] ❌ Error saving to Supabase:", error)
       throw error
     }
     
-    console.log("[saveState] State saved to Supabase successfully")
+    console.log("[Storage] ✅ State saved to Supabase")
+    
   } catch (error) {
-    console.error("Error saving state:", error)
+    console.error("[Storage] ❌ Exception saving state:", error)
     throw error
   }
 }
 
 /**
- * Clear cache (berguna untuk force refresh)
+ * Clear cache (force refresh)
  */
 export function clearCache(): void {
   stateCache = null
   lastFetch = 0
-  console.log("[clearCache] Cache cleared")
+  console.log("[Storage] Cache cleared")
 }
 
 // ===== PASSWORD FUNCTIONS =====
@@ -199,7 +236,9 @@ export function clearCache(): void {
  */
 export async function verifyPassword(inputPassword: string): Promise<boolean> {
   const state = await loadState()
-  return state.password === inputPassword
+  const isValid = state.password === inputPassword
+  console.log("[Auth] Password verification:", isValid ? "✅ Success" : "❌ Failed")
+  return isValid
 }
 
 /**
@@ -207,13 +246,11 @@ export async function verifyPassword(inputPassword: string): Promise<boolean> {
  */
 export async function updatePassword(newPassword: string): Promise<void> {
   await saveState({ password: newPassword })
+  console.log("[Auth] Password updated")
 }
 
 // ===== DATE HELPERS =====
 
-/**
- * Helper: Get today's date in local timezone
- */
 function getTodayDate(): string {
   const now = new Date()
   const year = now.getFullYear()
@@ -222,9 +259,6 @@ function getTodayDate(): string {
   return `${year}-${month}-${day}`
 }
 
-/**
- * Helper: Get current week start in local timezone
- */
 function getCurrentWeekStart(): string {
   const today = new Date()
   const day = today.getDay()
@@ -238,18 +272,12 @@ function getCurrentWeekStart(): string {
   return `${year}-${month}-${dayStr}`
 }
 
-/**
- * Get current day name
- */
 function getCurrentDayName(): string {
   const today = new Date()
   const dayIndex = today.getDay()
   return dayIndex === 0 ? "Minggu" : DAYS_ID[dayIndex - 1]
 }
 
-/**
- * Get week label
- */
 function getWeekLabel(date: Date): string {
   const weekNum = Math.ceil(date.getDate() / 7)
   const monthName = date.toLocaleDateString("id-ID", { month: "short" })
@@ -258,54 +286,50 @@ function getWeekLabel(date: Date): string {
 
 // ===== RESET FUNCTIONS =====
 
-/**
- * Check if needs daily reset
- */
 export async function needsDailyReset(): Promise<boolean> {
   const state = await loadState()
   const today = getTodayDate()
-  return state.lastDailyReset !== today
+  const needs = state.lastDailyReset !== today
+  if (needs) {
+    console.log("[Reset] Daily reset needed. Last reset:", state.lastDailyReset, "Today:", today)
+  }
+  return needs
 }
 
-/**
- * Check if needs weekly reset
- */
 export async function needsWeeklyReset(): Promise<boolean> {
   const state = await loadState()
   const currentWeekStart = getCurrentWeekStart()
-  return state.lastWeeklyReset !== currentWeekStart
+  const needs = state.lastWeeklyReset !== currentWeekStart
+  if (needs) {
+    console.log("[Reset] Weekly reset needed. Last reset:", state.lastWeeklyReset, "Current week:", currentWeekStart)
+  }
+  return needs
 }
 
-/**
- * Perform daily reset
- * IMPROVED: Better handling of daily history
- */
 export async function performDailyReset(): Promise<void> {
   const state = await loadState()
   const today = getTodayDate()
   
-  // Save current tasks to history
+  console.log("[Reset] Performing daily reset...")
+  
   if (state.dailyTasks.length > 0 || state.weeklyGoals.length > 0) {
     const completedTasks = state.dailyTasks.filter(t => t.done).length
     const failedTasks = state.dailyTasks.filter(t => !t.done)
     
-    // Get yesterday's day name (from lastDailyReset)
     const resetDate = state.lastDailyReset || today
     const dayName = getDayNameFromDate(resetDate)
     
-    // CRITICAL FIX: Filter goals yang sesuai dengan hari yang di-reset
     const dayGoals = state.weeklyGoals.filter(g => g.day === dayName)
     const completedGoals = dayGoals.filter(g => g.done)
     const failedGoals = dayGoals.filter(g => !g.done)
     
-    // Get yesterday's note if exists
     const yesterdayNote = state.dailyNotes.find(n => n.date === resetDate)
     
     const newHistoryEntry = {
       date: resetDate,
       totalTasks: state.dailyTasks.length,
       completedTasks,
-      weeklyGoalsTotal: dayGoals.length, // Hanya goals untuk hari itu
+      weeklyGoalsTotal: dayGoals.length,
       weeklyGoalsCompleted: completedGoals.length,
       completedGoalsList: completedGoals.map(g => g.text),
       failedTasksList: failedTasks.map(t => t.text),
@@ -321,26 +345,23 @@ export async function performDailyReset(): Promise<void> {
       lastDailyReset: today,
     })
     
-    console.log("[performDailyReset] Daily reset completed for:", resetDate)
+    console.log("[Reset] ✅ Daily reset completed for:", resetDate)
   } else {
     await saveState({ lastDailyReset: today })
-    console.log("[performDailyReset] Daily reset completed (no tasks/goals)")
+    console.log("[Reset] ✅ Daily reset completed (no tasks/goals)")
   }
 }
 
-/**
- * Perform weekly reset
- */
 export async function performWeeklyReset(): Promise<void> {
   const state = await loadState()
   const currentWeekStart = getCurrentWeekStart()
   
-  // Save current weekly goals to history
+  console.log("[Reset] Performing weekly reset...")
+  
   if (state.weeklyGoals.length > 0) {
     const completed = state.weeklyGoals.filter(g => g.done).length
     const weekLabel = getWeekLabel(new Date(state.lastWeeklyReset || currentWeekStart))
     
-    // Calculate end date
     const startDate = new Date(state.lastWeeklyReset || currentWeekStart)
     const endDate = new Date(startDate)
     endDate.setDate(startDate.getDate() + 6)
@@ -363,33 +384,27 @@ export async function performWeeklyReset(): Promise<void> {
       lastWeeklyReset: currentWeekStart,
     })
     
-    console.log("[performWeeklyReset] Weekly reset completed for:", weekLabel)
+    console.log("[Reset] ✅ Weekly reset completed for:", weekLabel)
   } else {
     await saveState({ lastWeeklyReset: currentWeekStart })
-    console.log("[performWeeklyReset] Weekly reset completed (no goals)")
+    console.log("[Reset] ✅ Weekly reset completed (no goals)")
   }
 }
 
-// ===== DAILY NOTES FUNCTIONS - IMPROVED =====
+// ===== DAILY NOTES FUNCTIONS =====
 
-/**
- * Save daily note for current date
- * IMPROVED: Also updates daily history immediately
- */
 export async function saveDailyNoteForToday(day: string, note: string): Promise<void> {
   const state = await loadState()
   const today = getTodayDate()
   
-  console.log(`[saveDailyNoteForToday] Saving note for ${day} on ${today}:`, note)
+  console.log(`[Notes] Saving note for ${day} on ${today}`)
   
-  // 1. Update dailyNotes array
   const existingNoteIndex = state.dailyNotes.findIndex(
     n => n.date === today && n.day === day
   )
   
   let updatedNotes
   if (!note.trim()) {
-    // Jika note kosong, hapus
     updatedNotes = state.dailyNotes.filter((_, i) => i !== existingNoteIndex)
   } else {
     const newNote = {
@@ -406,19 +421,16 @@ export async function saveDailyNoteForToday(day: string, note: string): Promise<
     }
   }
   
-  // 2. Update dailyHistory with the note
   const todayDayName = getCurrentDayName()
   const historyIndex = state.dailyHistory.findIndex(h => h.date === today)
   let updatedHistory = [...state.dailyHistory]
   
-  // CRITICAL FIX: Filter goals yang sesuai dengan hari ini
   const todayGoals = state.weeklyGoals.filter(g => g.day === todayDayName)
   const completedGoals = todayGoals.filter(g => g.done)
   const completedTasks = state.dailyTasks.filter(t => t.done)
   const failedTasks = state.dailyTasks.filter(t => !t.done)
   const failedGoals = todayGoals.filter(g => !g.done)
   
-  // Jika tidak ada tasks, goals, dan note → hapus entry
   if (state.dailyTasks.length === 0 && todayGoals.length === 0 && !note.trim()) {
     updatedHistory = updatedHistory.filter(h => h.date !== today)
   } else {
@@ -442,27 +454,20 @@ export async function saveDailyNoteForToday(day: string, note: string): Promise<
     }
   }
   
-  // 3. Save to database
   await saveState({
     dailyNotes: updatedNotes,
     dailyHistory: updatedHistory,
   })
   
-  console.log(`[saveDailyNoteForToday] Note saved successfully!`)
+  console.log("[Notes] ✅ Note saved successfully")
 }
 
-/**
- * Get daily note for specific date
- */
 export async function getDailyNoteForDate(date: string, day: string): Promise<string> {
   const state = await loadState()
   const note = state.dailyNotes.find(n => n.date === date && n.day === day)
   return note?.note || ""
 }
 
-/**
- * Get daily note for today
- */
 export async function getTodayNote(day: string): Promise<string> {
   const today = getTodayDate()
   const state = await loadState()
