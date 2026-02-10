@@ -189,11 +189,20 @@ export function getCurrentDayName(): string {
   return dayIndex === 0 ? "Minggu" : DAYS_ID[dayIndex - 1]
 }
 
-// ===== Bug Fix Helpers =====
+/**
+ * Get day name from a date string (YYYY-MM-DD)
+ */
+export function getDayNameFromDate(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00') // Force local timezone
+  const dayIndex = date.getDay()
+  return dayIndex === 0 ? "Minggu" : DAYS_ID[dayIndex - 1]
+}
+
+// ===== IMPROVED Bug Fix Helpers =====
 
 /**
  * Get stats for goals on a specific day
- * Fix Bug #1: Tidak menghitung input field atau placeholder
+ * FIX: Hanya menghitung goals yang valid (punya id dan day yang sesuai)
  */
 export function getDayGoalsStats(goals: WeeklyGoal[], day: string) {
   // Filter hanya goals yang valid (punya id dan day yang sesuai)
@@ -212,7 +221,10 @@ export function getDayGoalsStats(goals: WeeklyGoal[], day: string) {
 
 /**
  * Update daily history with current progress
- * Fix Bug #2 & #3: Update history saat ada perubahan dan pastikan date benar
+ * FIX CRITICAL: 
+ * 1. Pastikan hanya goals untuk hari yang tepat yang dihitung (berdasarkan nama hari dari date)
+ * 2. Update real-time saat ada perubahan tasks/goals
+ * 3. Hapus entry jika tidak ada tasks dan goals sama sekali (untuk fix bug delete)
  */
 export function updateDailyHistoryForToday(
   currentHistory: TaskHistoryEntry[],
@@ -223,11 +235,17 @@ export function updateDailyHistoryForToday(
   const today = getTodayString()
   const todayDayName = getCurrentDayName()
   
-  // Filter goals untuk hari ini
+  // CRITICAL FIX: Filter goals berdasarkan hari yang sesuai dengan tanggal hari ini
   const todayGoals = weeklyGoals.filter(g => g.day === todayDayName)
   const completedGoals = todayGoals.filter(g => g.done)
   const failedGoals = todayGoals.filter(g => !g.done)
   const failedTasks = dailyTasks.filter(t => !t.done)
+  
+  // FIX: Jika tidak ada daily tasks DAN tidak ada weekly goals untuk hari ini DAN tidak ada note
+  // maka HAPUS entry dari history (untuk fix bug delete task)
+  if (dailyTasks.length === 0 && todayGoals.length === 0 && !dailyNote?.trim()) {
+    return currentHistory.filter(h => h.date !== today)
+  }
   
   // Cari record untuk hari ini
   const todayIndex = currentHistory.findIndex(h => h.date === today)
@@ -236,7 +254,7 @@ export function updateDailyHistoryForToday(
     date: today,
     totalTasks: dailyTasks.length,
     completedTasks: dailyTasks.filter(t => t.done).length,
-    weeklyGoalsTotal: todayGoals.length,
+    weeklyGoalsTotal: todayGoals.length, // Hanya goals untuk hari ini
     weeklyGoalsCompleted: completedGoals.length,
     completedGoalsList: completedGoals.map(g => g.text),
     failedTasksList: failedTasks.map(t => t.text),
@@ -257,8 +275,60 @@ export function updateDailyHistoryForToday(
 }
 
 /**
+ * Update daily history untuk tanggal spesifik (bukan hari ini)
+ * Digunakan saat user mengubah goals di hari lain
+ */
+export function updateDailyHistoryForDate(
+  currentHistory: TaskHistoryEntry[],
+  dateStr: string,
+  weeklyGoals: WeeklyGoal[],
+  dailyNote?: string
+): TaskHistoryEntry[] {
+  const dayName = getDayNameFromDate(dateStr)
+  
+  // Filter goals untuk hari yang sesuai
+  const dayGoals = weeklyGoals.filter(g => g.day === dayName)
+  const completedGoals = dayGoals.filter(g => g.done)
+  const failedGoals = dayGoals.filter(g => !g.done)
+  
+  // Cari existing record untuk tanggal ini
+  const existingIndex = currentHistory.findIndex(h => h.date === dateStr)
+  const existingRecord = existingIndex >= 0 ? currentHistory[existingIndex] : null
+  
+  // Jika tidak ada goals untuk hari ini DAN tidak ada daily tasks DAN tidak ada note
+  // maka hapus entry (jika ada)
+  if (dayGoals.length === 0 && (!existingRecord || existingRecord.totalTasks === 0) && !dailyNote?.trim()) {
+    if (existingIndex >= 0) {
+      return currentHistory.filter(h => h.date !== dateStr)
+    }
+    return currentHistory
+  }
+  
+  const newEntry: TaskHistoryEntry = {
+    date: dateStr,
+    totalTasks: existingRecord?.totalTasks || 0,
+    completedTasks: existingRecord?.completedTasks || 0,
+    weeklyGoalsTotal: dayGoals.length,
+    weeklyGoalsCompleted: completedGoals.length,
+    completedGoalsList: completedGoals.map(g => g.text),
+    failedTasksList: existingRecord?.failedTasksList || [],
+    failedGoalsList: failedGoals.map(g => g.text),
+    hasNotes: !!dailyNote?.trim(),
+    dailyNote: dailyNote?.trim() || undefined,
+  }
+  
+  if (existingIndex >= 0) {
+    const updated = [...currentHistory]
+    updated[existingIndex] = newEntry
+    return updated
+  } else {
+    return [...currentHistory, newEntry]
+  }
+}
+
+/**
  * Update weekly progress for today
- * Fix Bug #3: Pastikan update untuk hari ini, bukan kemarin
+ * FIX: Pastikan hanya menghitung goals untuk hari ini
  */
 export function updateWeeklyProgressForToday(
   currentProgress: WeeklyProgressEntry[],
@@ -267,9 +337,14 @@ export function updateWeeklyProgressForToday(
   const today = getTodayString()
   const todayDayName = getCurrentDayName()
   
-  // Filter goals untuk hari ini
+  // CRITICAL FIX: Filter goals berdasarkan hari yang sesuai
   const todayGoals = weeklyGoals.filter(g => g.day === todayDayName)
   const completedGoals = todayGoals.filter(g => g.done)
+  
+  // Jika tidak ada goals untuk hari ini, hapus entry
+  if (todayGoals.length === 0) {
+    return currentProgress.filter(p => p.date !== today)
+  }
   
   // Cari record untuk hari ini
   const todayIndex = currentProgress.findIndex(p => p.date === today)
@@ -307,6 +382,14 @@ export function saveDailyNote(
   const existingIndex = currentNotes.findIndex(
     n => n.date === today && n.day === day
   )
+  
+  // Jika note kosong, hapus entry
+  if (!note.trim()) {
+    if (existingIndex >= 0) {
+      return currentNotes.filter((_, i) => i !== existingIndex)
+    }
+    return currentNotes
+  }
   
   const newNote: DailyNote = {
     date: today,
@@ -346,4 +429,70 @@ export function getTodayNote(
 ): string {
   const today = getTodayString()
   return getDailyNoteForDate(notes, today, day)
+}
+
+/**
+ * Recalculate all daily history for the current week
+ * Call this after adding/removing/toggling weekly goals
+ * to ensure all dates in current week have correct goal counts
+ */
+export function recalculateWeeklyGoalsInHistory(
+  currentHistory: TaskHistoryEntry[],
+  weeklyGoals: WeeklyGoal[]
+): TaskHistoryEntry[] {
+  const today = new Date()
+  const currentWeekStart = getCurrentWeekStart()
+  const weekStartDate = new Date(currentWeekStart + 'T00:00:00')
+  
+  // Get all dates in current week (Monday to Sunday)
+  const weekDates: string[] = []
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(weekStartDate)
+    date.setDate(weekStartDate.getDate() + i)
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    weekDates.push(dateStr)
+  }
+  
+  let updatedHistory = [...currentHistory]
+  
+  // Update each date in the current week
+  for (const dateStr of weekDates) {
+    const dayName = getDayNameFromDate(dateStr)
+    const dayGoals = weeklyGoals.filter(g => g.day === dayName)
+    const completedGoals = dayGoals.filter(g => g.done)
+    const failedGoals = dayGoals.filter(g => !g.done)
+    
+    const existingIndex = updatedHistory.findIndex(h => h.date === dateStr)
+    const existingRecord = existingIndex >= 0 ? updatedHistory[existingIndex] : null
+    
+    // Skip jika tidak ada goals dan tidak ada tasks untuk tanggal ini
+    if (dayGoals.length === 0 && (!existingRecord || existingRecord.totalTasks === 0)) {
+      // Hapus entry jika ada
+      if (existingIndex >= 0) {
+        updatedHistory = updatedHistory.filter(h => h.date !== dateStr)
+      }
+      continue
+    }
+    
+    const newEntry: TaskHistoryEntry = {
+      date: dateStr,
+      totalTasks: existingRecord?.totalTasks || 0,
+      completedTasks: existingRecord?.completedTasks || 0,
+      weeklyGoalsTotal: dayGoals.length,
+      weeklyGoalsCompleted: completedGoals.length,
+      completedGoalsList: completedGoals.map(g => g.text),
+      failedTasksList: existingRecord?.failedTasksList || [],
+      failedGoalsList: failedGoals.map(g => g.text),
+      hasNotes: existingRecord?.hasNotes || false,
+      dailyNote: existingRecord?.dailyNote,
+    }
+    
+    if (existingIndex >= 0) {
+      updatedHistory[existingIndex] = newEntry
+    } else {
+      updatedHistory.push(newEntry)
+    }
+  }
+  
+  return updatedHistory
 }

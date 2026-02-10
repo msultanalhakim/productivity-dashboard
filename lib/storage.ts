@@ -1,5 +1,10 @@
 import type { AppState } from "./store"
 import { supabase } from "./supabase"
+import { 
+  DAYS_ID, 
+  getDayNameFromDate, 
+  recalculateWeeklyGoalsInHistory 
+} from "./store"
 
 const SESSION_KEY = "command-center-session"
 const IDLE_TIMEOUT = 60 * 40 * 1000 // 40 minutes in milliseconds
@@ -24,7 +29,6 @@ export const DEFAULT_STATE: AppState = {
   currentMonth: new Date().toISOString(),
   password: "sultan",
 }
-
 
 // Session ID generator
 function generateSessionId(): string {
@@ -216,7 +220,6 @@ function getCurrentWeekStart(): string {
  * Get current day name
  */
 function getCurrentDayName(): string {
-  const DAYS_ID = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
   const today = new Date()
   const dayIndex = today.getDay()
   return dayIndex === 0 ? "Minggu" : DAYS_ID[dayIndex - 1]
@@ -253,6 +256,7 @@ export async function needsWeeklyReset(): Promise<boolean> {
 
 /**
  * Perform daily reset
+ * IMPROVED: Better handling of daily history
  */
 export async function performDailyReset(): Promise<void> {
   const state = await loadState()
@@ -263,26 +267,29 @@ export async function performDailyReset(): Promise<void> {
     const completedTasks = state.dailyTasks.filter(t => t.done).length
     const failedTasks = state.dailyTasks.filter(t => !t.done)
     
-    // Get today's goals
-    const todayDayName = getCurrentDayName()
-    const todayGoals = state.weeklyGoals.filter(g => g.day === todayDayName)
-    const completedGoals = todayGoals.filter(g => g.done)
-    const failedGoals = todayGoals.filter(g => !g.done)
+    // Get yesterday's day name (from lastDailyReset)
+    const resetDate = state.lastDailyReset || today
+    const dayName = getDayNameFromDate(resetDate)
     
-    // Get today's note if exists
-    const todayNote = state.dailyNotes.find(n => n.date === (state.lastDailyReset || today))
+    // CRITICAL FIX: Filter goals yang sesuai dengan hari yang di-reset
+    const dayGoals = state.weeklyGoals.filter(g => g.day === dayName)
+    const completedGoals = dayGoals.filter(g => g.done)
+    const failedGoals = dayGoals.filter(g => !g.done)
+    
+    // Get yesterday's note if exists
+    const yesterdayNote = state.dailyNotes.find(n => n.date === resetDate)
     
     const newHistoryEntry = {
-      date: state.lastDailyReset || today,
+      date: resetDate,
       totalTasks: state.dailyTasks.length,
       completedTasks,
-      weeklyGoalsTotal: todayGoals.length,
+      weeklyGoalsTotal: dayGoals.length, // Hanya goals untuk hari itu
       weeklyGoalsCompleted: completedGoals.length,
       completedGoalsList: completedGoals.map(g => g.text),
       failedTasksList: failedTasks.map(t => t.text),
       failedGoalsList: failedGoals.map(g => g.text),
-      hasNotes: !!todayNote?.note?.trim(),
-      dailyNote: todayNote?.note?.trim() || undefined,
+      hasNotes: !!yesterdayNote?.note?.trim(),
+      dailyNote: yesterdayNote?.note?.trim() || undefined,
     }
     
     await saveState({
@@ -335,10 +342,11 @@ export async function performWeeklyReset(): Promise<void> {
   }
 }
 
-// ===== DAILY NOTES FUNCTIONS =====
+// ===== DAILY NOTES FUNCTIONS - IMPROVED =====
 
 /**
  * Save daily note for current date
+ * IMPROVED: Also updates daily history immediately
  */
 export async function saveDailyNoteForToday(day: string, note: string): Promise<void> {
   const state = await loadState()
@@ -351,18 +359,23 @@ export async function saveDailyNoteForToday(day: string, note: string): Promise<
     n => n.date === today && n.day === day
   )
   
-  const newNote = {
-    date: today,
-    day,
-    note: note.trim(),
-  }
-  
   let updatedNotes
-  if (existingNoteIndex >= 0) {
-    updatedNotes = [...state.dailyNotes]
-    updatedNotes[existingNoteIndex] = newNote
+  if (!note.trim()) {
+    // Jika note kosong, hapus
+    updatedNotes = state.dailyNotes.filter((_, i) => i !== existingNoteIndex)
   } else {
-    updatedNotes = [...state.dailyNotes, newNote]
+    const newNote = {
+      date: today,
+      day,
+      note: note.trim(),
+    }
+    
+    if (existingNoteIndex >= 0) {
+      updatedNotes = [...state.dailyNotes]
+      updatedNotes[existingNoteIndex] = newNote
+    } else {
+      updatedNotes = [...state.dailyNotes, newNote]
+    }
   }
   
   // 2. Update dailyHistory with the note
@@ -370,22 +383,18 @@ export async function saveDailyNoteForToday(day: string, note: string): Promise<
   const historyIndex = state.dailyHistory.findIndex(h => h.date === today)
   let updatedHistory = [...state.dailyHistory]
   
-  if (historyIndex >= 0) {
-    // Update existing history entry
-    updatedHistory[historyIndex] = {
-      ...updatedHistory[historyIndex],
-      hasNotes: !!note.trim(),
-      dailyNote: note.trim() || undefined,
-    }
+  // CRITICAL FIX: Filter goals yang sesuai dengan hari ini
+  const todayGoals = state.weeklyGoals.filter(g => g.day === todayDayName)
+  const completedGoals = todayGoals.filter(g => g.done)
+  const completedTasks = state.dailyTasks.filter(t => t.done)
+  const failedTasks = state.dailyTasks.filter(t => !t.done)
+  const failedGoals = todayGoals.filter(g => !g.done)
+  
+  // Jika tidak ada tasks, goals, dan note → hapus entry
+  if (state.dailyTasks.length === 0 && todayGoals.length === 0 && !note.trim()) {
+    updatedHistory = updatedHistory.filter(h => h.date !== today)
   } else {
-    // Create new history entry if it doesn't exist
-    const todayGoals = state.weeklyGoals.filter(g => g.day === todayDayName)
-    const completedGoals = todayGoals.filter(g => g.done)
-    const completedTasks = state.dailyTasks.filter(t => t.done)
-    const failedTasks = state.dailyTasks.filter(t => !t.done)
-    const failedGoals = todayGoals.filter(g => !g.done)
-    
-    updatedHistory.push({
+    const newEntry = {
       date: today,
       totalTasks: state.dailyTasks.length,
       completedTasks: completedTasks.length,
@@ -396,7 +405,13 @@ export async function saveDailyNoteForToday(day: string, note: string): Promise<
       failedGoalsList: failedGoals.map(g => g.text),
       hasNotes: !!note.trim(),
       dailyNote: note.trim() || undefined,
-    })
+    }
+    
+    if (historyIndex >= 0) {
+      updatedHistory[historyIndex] = newEntry
+    } else {
+      updatedHistory.push(newEntry)
+    }
   }
   
   // 3. Save to database
@@ -405,7 +420,7 @@ export async function saveDailyNoteForToday(day: string, note: string): Promise<
     dailyHistory: updatedHistory,
   })
   
-  console.log(`[saveDailyNoteForToday] Note saved successfully to Supabase!`)
+  console.log(`[saveDailyNoteForToday] Note saved successfully!`)
 }
 
 /**

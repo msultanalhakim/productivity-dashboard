@@ -234,41 +234,78 @@ function CommandCenterInner() {
     toast,
   ])
 
-  // Update daily history when tasks/goals change
-  useEffect(() => {
-    if (isLocked || isLoading || dailyTasks.length === 0) return
+  // ✅ FIXED: Update daily history when tasks/goals change
+  // Using useCallback to avoid recreating this logic
+  const updateTodayHistory = useCallback(() => {
+    if (isLocked || isLoading) return
     
     const today = getTodayString()
-    const existing = dailyHistory.find((h) => h.date === today)
-    
     const todayDayName = getCurrentDayName()
-    const completedGoalsList = weeklyGoals
-      .filter((g) => g.day === todayDayName && g.done)
-      .map((g) => g.text)
     
-    const newRecord = {
-      date: today,
-      totalTasks: dailyTasks.length,
-      completedTasks: dailyTasks.filter((t) => t.done).length,
-      weeklyGoalsCompleted: weeklyGoals.filter((g) => g.done).length,
-      weeklyGoalsTotal: weeklyGoals.length,
-      completedGoalsList,
-    }
+    // Filter goals for today only
+    const todayGoals = weeklyGoals.filter((g) => g.day === todayDayName)
+    const completedGoals = todayGoals.filter((g) => g.done)
+    
+    // Get today's note if exists
+    const todayNote = dailyNotes.find(n => n.date === today)
+    
+    setDailyHistory((prev) => {
+      // ✅ FIX: If no tasks AND no goals for today AND no note → remove entry
+      if (dailyTasks.length === 0 && todayGoals.length === 0 && !todayNote?.note?.trim()) {
+        console.log('[updateTodayHistory] Removing today entry - no tasks, no goals, no note')
+        return prev.filter((h) => h.date !== today)
+      }
+      
+      const completedGoalsList = completedGoals.map((g) => g.text)
+      const failedTasks = dailyTasks.filter((t) => !t.done)
+      const failedGoals = todayGoals.filter((g) => !g.done)
+      
+      const newRecord = {
+        date: today,
+        totalTasks: dailyTasks.length,
+        completedTasks: dailyTasks.filter((t) => t.done).length,
+        weeklyGoalsCompleted: completedGoals.length,
+        weeklyGoalsTotal: todayGoals.length, // Only today's goals
+        completedGoalsList,
+        failedTasksList: failedTasks.map(t => t.text),
+        failedGoalsList: failedGoals.map(g => g.text),
+        hasNotes: !!todayNote?.note?.trim(),
+        dailyNote: todayNote?.note?.trim() || undefined,
+      }
 
-    if (!existing) {
-      setDailyHistory((prev) => [...prev, newRecord])
-    } else if (
-      existing.completedTasks !== newRecord.completedTasks ||
-      existing.totalTasks !== newRecord.totalTasks ||
-      existing.weeklyGoalsCompleted !== newRecord.weeklyGoalsCompleted ||
-      existing.weeklyGoalsTotal !== newRecord.weeklyGoalsTotal ||
-      JSON.stringify(existing.completedGoalsList) !== JSON.stringify(completedGoalsList)
-    ) {
-      setDailyHistory((prev) =>
-        prev.map((h) => (h.date === today ? newRecord : h))
-      )
-    }
-  }, [dailyTasks, weeklyGoals, isLocked, isLoading, dailyHistory])
+      const existing = prev.find((h) => h.date === today)
+      
+      if (!existing) {
+        console.log('[updateTodayHistory] Creating new history entry:', newRecord)
+        return [...prev, newRecord]
+      }
+      
+      // Check if anything changed
+      const hasChanges = 
+        existing.completedTasks !== newRecord.completedTasks ||
+        existing.totalTasks !== newRecord.totalTasks ||
+        existing.weeklyGoalsCompleted !== newRecord.weeklyGoalsCompleted ||
+        existing.weeklyGoalsTotal !== newRecord.weeklyGoalsTotal ||
+        JSON.stringify(existing.completedGoalsList) !== JSON.stringify(completedGoalsList) ||
+        JSON.stringify(existing.failedTasksList) !== JSON.stringify(newRecord.failedTasksList) ||
+        JSON.stringify(existing.failedGoalsList) !== JSON.stringify(newRecord.failedGoalsList) ||
+        existing.hasNotes !== newRecord.hasNotes ||
+        existing.dailyNote !== newRecord.dailyNote
+      
+      if (hasChanges) {
+        console.log('[updateTodayHistory] Updating history entry:', newRecord)
+        return prev.map((h) => (h.date === today ? newRecord : h))
+      }
+      
+      // No changes, return previous state to avoid re-render
+      return prev
+    })
+  }, [dailyTasks, weeklyGoals, dailyNotes, isLocked, isLoading])
+
+  // Call updateTodayHistory whenever dependencies change
+  useEffect(() => {
+    updateTodayHistory()
+  }, [updateTodayHistory])
 
   // Handler to save daily note
   const handleSaveDailyNote = useCallback(async (day: string, note: string) => {
