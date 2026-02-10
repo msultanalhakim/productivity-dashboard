@@ -71,7 +71,7 @@ export function DailyTasks({ tasks, onToggle, onAdd, onDelete, hideInput = false
     <>
       <GlassCard glowColor="cyan" className="flex h-full w-full flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">Tugas Harian</h2>
+          <h2 className="text-base md:text-lg font-bold text-foreground">Tugas Harian</h2>
           {total > 0 && (
             <span className="rounded-full bg-[hsl(187_100%_50%/0.1)] px-2.5 py-0.5 text-xs font-semibold text-cyan">
               {done}/{total}
@@ -155,7 +155,7 @@ export function DailyTasks({ tasks, onToggle, onAdd, onDelete, hideInput = false
       {/* Fullscreen Celebration Overlay */}
       {showFullscreenCelebration && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in">
-          <div className="flex flex-col items-center gap-6">
+          <div className="flex flex-col items-center gap-4 md:gap-6">
             <span className="animate-celebration-bounce text-[180px] drop-shadow-2xl">🎉</span>
             <span className="animate-fade-in text-3xl font-bold text-white drop-shadow-lg">
               Tugas Selesai!

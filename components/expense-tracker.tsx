@@ -85,7 +85,6 @@ export function ExpenseTracker({
     toast("Transaksi berhasil disimpan", "success")
   }
 
-  // Close modal on Escape
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape" && showModal) setShowModal(false)
@@ -100,55 +99,55 @@ export function ExpenseTracker({
 
   return (
     <>
-      <GlassCard className="flex h-full w-full flex-col gap-4">
+      <GlassCard className="flex h-full w-full flex-col gap-3 sm:gap-4 p-4 sm:p-5 md:p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-1 w-1 rounded-full bg-cyan"></div>
-            <h2 className="text-base font-semibold text-foreground">Catatan Keuangan</h2>
+            <h2 className="text-sm sm:text-base font-semibold text-foreground">Catatan Keuangan</h2>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={goPrevMonth}
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
               aria-label="Bulan sebelumnya"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>
-            <span className="min-w-[130px] text-center text-sm font-medium text-foreground">
+            <span className="min-w-[100px] sm:min-w-[130px] text-center text-xs sm:text-sm font-medium text-foreground">
               {getMonthName(currentMonth)}
             </span>
             <button
               onClick={goNextMonth}
               disabled={isCurrentMonth}
               className={cn(
-                "rounded-lg p-1.5 transition-colors",
+                "flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg transition-colors",
                 isCurrentMonth
                   ? "cursor-not-allowed text-muted-foreground/50"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
               aria-label="Bulan berikutnya"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>
           </div>
         </div>
 
         {/* Summary */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex items-center gap-2 rounded-xl bg-[hsl(145_100%_50%/0.08)] px-3 py-2">
-            <ArrowDownLeft className="h-4 w-4 text-neon" />
-            <div>
-              <p className="text-xs text-muted-foreground">Masuk</p>
-              <p className="text-sm font-bold text-neon">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 rounded-xl bg-[hsl(145_100%_50%/0.08)] px-2.5 py-2 sm:px-3">
+            <ArrowDownLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-neon shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Masuk</p>
+              <p className="text-xs sm:text-sm font-bold text-neon truncate">
                 Rp {formatRupiah(totalIn)}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-xl bg-[hsl(0_85%_55%/0.08)] px-3 py-2">
-            <ArrowUpRight className="h-4 w-4 text-crimson" />
-            <div>
-              <p className="text-xs text-muted-foreground">Keluar</p>
-              <p className="text-sm font-bold text-crimson">
+          <div className="flex items-center gap-2 rounded-xl bg-[hsl(0_85%_55%/0.08)] px-2.5 py-2 sm:px-3">
+            <ArrowUpRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-crimson shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Keluar</p>
+              <p className="text-xs sm:text-sm font-bold text-crimson truncate">
                 Rp {formatRupiah(totalOut)}
               </p>
             </div>
@@ -158,10 +157,11 @@ export function ExpenseTracker({
         {/* Add Transaction Button */}
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-2.5 text-sm text-muted-foreground transition-colors hover:border-cyan hover:text-cyan"
+          className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-2 sm:py-2.5 text-xs sm:text-sm text-muted-foreground transition-colors hover:border-cyan hover:text-cyan"
         >
-          <Plus className="h-4 w-4" />
-          Tambah Transaksi
+          <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          <span className="hidden xs:inline">Tambah Transaksi</span>
+          <span className="xs:hidden">Tambah</span>
         </button>
 
         {/* Expense List */}
@@ -172,45 +172,46 @@ export function ExpenseTracker({
             filteredExpenses.map((e) => (
               <div
                 key={e.id}
-                className="group flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2"
+                className="group flex items-center justify-between gap-2 rounded-lg bg-secondary/50 px-2.5 py-2 sm:px-3"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                   <div
                     className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-lg",
+                      "flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg shrink-0",
                       e.type === "in"
                         ? "bg-[hsl(145_100%_50%/0.1)]"
                         : "bg-[hsl(0_85%_55%/0.1)]"
                     )}
                   >
                     {e.type === "in" ? (
-                      <ArrowDownLeft className="h-4 w-4 text-neon" />
+                      <ArrowDownLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-neon" />
                     ) : (
-                      <ArrowUpRight className="h-4 w-4 text-crimson" />
+                      <ArrowUpRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-crimson" />
                     )}
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{e.label}</p>
-                    <p className="text-xs text-muted-foreground">
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-foreground truncate">{e.label}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                       {e.category} &middot; {new Date(e.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                   <span
                     className={cn(
-                      "text-sm font-semibold",
+                      "text-xs sm:text-sm font-semibold",
                       e.type === "in" ? "text-neon" : "text-crimson"
                     )}
                   >
-                    {e.type === "in" ? "+" : "-"}Rp {formatRupiah(e.amount)}
+                    <span className="hidden xs:inline">{e.type === "in" ? "+" : "-"}Rp {formatRupiah(e.amount)}</span>
+                    <span className="xs:hidden">{e.type === "in" ? "+" : "-"}{formatRupiah(e.amount)}</span>
                   </span>
                   <button
                     onClick={() => onDeleteExpense(e.id)}
                     className="rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:text-crimson group-hover:opacity-100"
                     aria-label={`Hapus ${e.label}`}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </button>
                 </div>
               </div>
@@ -219,7 +220,7 @@ export function ExpenseTracker({
         </div>
       </GlassCard>
 
-      {/* Minimalist Transaction Modal */}
+      {/* Modal - tetap sama */}
       <AnimatePresence>
         {showModal && (
           <motion.div
@@ -237,7 +238,6 @@ export function ExpenseTracker({
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-md overflow-hidden rounded-xl border border-border bg-card shadow-xl"
             >
-              {/* Header */}
               <div className="border-b border-border px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -258,9 +258,7 @@ export function ExpenseTracker({
                 </div>
               </div>
 
-              {/* Form */}
               <div className="space-y-4 p-6">
-                {/* Type Toggle */}
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground">Jenis Transaksi</label>
                   <div className="grid grid-cols-2 gap-2 rounded-lg bg-secondary/50 p-1">

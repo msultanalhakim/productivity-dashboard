@@ -39,7 +39,7 @@ export function SaldoCard({ saldo, lastMonthSaldo, incomeThisMonth, expenseThisM
         </div>
       </div>
       <p className="text-4xl font-bold tracking-tight text-foreground">
-        <span className="text-lg text-muted-foreground">Rp</span>{" "}
+        <span className="text-base md:text-lg text-muted-foreground">Rp</span>{" "}
         {formatRupiah(saldo)}
       </p>
       <p className="text-xs text-muted-foreground">

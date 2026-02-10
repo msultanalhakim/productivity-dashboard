@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Settings, Calendar, AlertTriangle, LayoutDashboard, Wallet, ListTodo, Target } from "lucide-react"
+import { Settings, Calendar, AlertTriangle, LayoutDashboard, Wallet, ListTodo, Target, ArrowUp, MoreVertical } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { MusicPlayer } from "@/components/music-player"
 import { SaldoCard } from "@/components/saldo-card"
@@ -59,10 +59,12 @@ interface WeeklyRecord {
 function CommandCenterInner() {
   const [isLocked, setIsLocked] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
+  const [showQuickMenu, setShowQuickMenu] = useState(false)
   const [activeNav, setActiveNav] = useState<NavSection>("dashboard")
   const [mood, setMood] = useState<Mood | null>(null)
   const [lastMoodDate, setLastMoodDate] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showScrollTop, setShowScrollTop] = useState(false)
 
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -91,6 +93,20 @@ function CommandCenterInner() {
       toast("Sesi berakhir karena tidak ada aktivitas", "warning")
     },
   })
+
+  // Scroll to top detection
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300)
+    }
+
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
 
   // Initial load from Supabase
   useEffect(() => {
@@ -418,29 +434,74 @@ function CommandCenterInner() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="fixed right-4 top-4 z-40 flex items-center gap-2 md:right-6 md:top-6">
-        <MusicPlayer />
-        <ThemeToggle />
-        <button
-          onClick={() => setShowSettings(true)}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--muted-foreground))] backdrop-blur-xl transition-colors hover:text-[hsl(var(--primary))]"
-          aria-label="Pengaturan"
-        >
-          <Settings className="h-5 w-5" />
-        </button>
+      {/* Scroll to Top Button - tetap sama */}
+      
+      {/* Quick Menu Toggle */}
+      <div className="fixed right-4 top-4 z-40 md:right-6 md:top-6">
+        <div className="relative">
+          <button
+            onClick={() => setShowQuickMenu(!showQuickMenu)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground backdrop-blur-xl transition-colors hover:text-primary"
+            aria-label="Menu cepat"
+          >
+            <MoreVertical className="h-5 w-5" />
+          </button>
+
+          {/* Dropdown Menu */}
+          <AnimatePresence>
+            {showQuickMenu && (
+              <>
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setShowQuickMenu(false)}
+                  className="fixed inset-0 z-30"
+                />
+
+                {/* Menu Items */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-12 z-40 flex flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-xl backdrop-blur-xl"
+                >
+                  <div className="flex items-center gap-2">
+                    <MusicPlayer />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ThemeToggle />
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowSettings(true)
+                      setShowQuickMenu(false)
+                    }}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground border border-[hsl(var(--border))] transition-colors hover:bg-secondary hover:text-foreground"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
+      {/* Rest of the component tetap sama */}
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
-      <main className="w-full px-8 py-6 pb-24">
+      <main className="w-full px-4 py-4 pb-24 md:px-8 md:py-6">
         <div className="mx-auto w-full max-w-7xl">
           {/* Header with Side Navigation */}
-          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="mb-4 flex flex-col gap-3 md:mb-6 md:flex-row md:items-start md:justify-between md:gap-4">
             <div className="flex flex-col gap-1">
-              <h1 className="text-balance text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+              <h1 className="text-balance text-xl font-bold tracking-tight text-foreground md:text-2xl lg:text-3xl">
                 Productivity Dashboard
               </h1>
-              <p className="text-sm text-muted-foreground">{dateStr}</p>
+              <p className="text-xs text-muted-foreground md:text-sm">{dateStr}</p>
             </div>
             
             {/* Side Navigation */}
@@ -452,7 +513,7 @@ function CommandCenterInner() {
                     key={item.id}
                     onClick={() => setActiveNav(item.id)}
                     className={cn(
-                      "flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all",
+                      "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all md:px-4",
                       activeNav === item.id
                         ? "bg-cyan/20 text-cyan shadow-[0_0_15px_rgba(0,240,255,0.2)]"
                         : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -478,11 +539,11 @@ function CommandCenterInner() {
                 initial="initial"
                 animate="animate"
                 exit="exit"
-                className="flex w-full min-w-0 flex-col gap-4"
+                className="flex w-full min-w-0 flex-col gap-3 md:gap-4"
               >
                 {/* Top row */}
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-12 md:col-span-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-12 md:gap-4">
+                  <div className="col-span-1 md:col-span-4">
                     <SaldoCard
                       saldo={saldo}
                       lastMonthSaldo={lastMonthSaldo}
@@ -490,7 +551,7 @@ function CommandCenterInner() {
                       expenseThisMonth={expenseThisMonth}
                     />
                   </div>
-                  <div className="col-span-12 md:col-span-4">
+                  <div className="col-span-1 md:col-span-4">
                     <DailyProgress
                       tasksTotal={tasksTotal}
                       tasksDone={tasksDone}
@@ -498,18 +559,18 @@ function CommandCenterInner() {
                       goalsDone={goalsDone}
                     />
                   </div>
-                  <div className="col-span-12 md:col-span-4">
+                  <div className="col-span-1 md:col-span-4">
                     <MoodTracker mood={mood} lastMoodDate={lastMoodDate} onMoodChange={setMood} />
                   </div>
                 </div>
 
                 {/* Chart + Quick Stats */}
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-12 lg:col-span-8">
+                <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-12">
+                  <div className="col-span-1 lg:col-span-8">
                     <ExpenseChart expenses={thisMonthExpenses} />
                   </div>
-                  <div className="col-span-12 lg:col-span-4">
-                    <GlassCard className="flex h-full w-full flex-col gap-4">
+                  <div className="col-span-1 lg:col-span-4">
+                    <GlassCard className="flex h-full w-full flex-col gap-3 md:gap-4">
                       <div className="flex items-center gap-2">
                         <div className="h-1 w-1 rounded-full bg-cyan"></div>
                         <span className="text-sm font-semibold text-foreground">
@@ -526,12 +587,12 @@ function CommandCenterInner() {
                 </div>
 
                 {/* Tasks Preview + Active Goals */}
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-12 md:col-span-5">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-12 md:gap-4">
+                  <div className="col-span-1 md:col-span-5">
                     <DailyTasks tasks={dailyTasks} onToggle={toggleTask} onAdd={addTask} onDelete={deleteTask} hideInput={true} />
                   </div>
-                  <div className="col-span-12 md:col-span-7">
-                    <GlassCard glowColor="neon" className="flex h-full w-full flex-col gap-4">
+                  <div className="col-span-1 md:col-span-7">
+                    <GlassCard glowColor="neon" className="flex h-full w-full flex-col gap-3 md:gap-4">
                       <div className="flex items-center gap-2">
                         <div className="h-1 w-1 rounded-full bg-neon"></div>
                         <h3 className="text-sm font-semibold text-foreground">Goals Terdekat</h3>
@@ -548,7 +609,7 @@ function CommandCenterInner() {
                               <div 
                                 key={g.id} 
                                 className={cn(
-                                  "flex flex-col gap-3 rounded-xl border-2 p-4 transition-all",
+                                  "flex flex-col gap-2 rounded-xl border-2 p-3 transition-all md:gap-3 md:p-4",
                                   overdue 
                                     ? "border-crimson bg-crimson/5" 
                                     : "border-border bg-secondary/30"
@@ -562,7 +623,7 @@ function CommandCenterInner() {
                                     )}
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                   {overdue ? (
                                     <>
                                       <AlertTriangle className="h-4 w-4 text-crimson" />
@@ -604,11 +665,11 @@ function CommandCenterInner() {
                 initial="initial"
                 animate="animate"
                 exit="exit"
-                className="flex w-full min-w-0 flex-col gap-4"
+                className="flex w-full min-w-0 flex-col gap-3 md:gap-4"
                 ref={expenseRef}
               >
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-12 md:col-span-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-12 md:gap-4">
+                  <div className="col-span-1 md:col-span-4">
                     <SaldoCard
                       saldo={saldo}
                       lastMonthSaldo={lastMonthSaldo}
@@ -616,11 +677,11 @@ function CommandCenterInner() {
                       expenseThisMonth={expenseThisMonth}
                     />
                   </div>
-                  <div className="col-span-12 md:col-span-8">
+                  <div className="col-span-1 md:col-span-8">
                     <ExpenseChart expenses={thisMonthExpenses} />
                   </div>
                 </div>
-                <div className="col-span-12">
+                <div className="col-span-1">
                   <ExpenseTracker
                     expenses={expenses}
                     onAddExpense={addExpense}
@@ -643,14 +704,14 @@ function CommandCenterInner() {
                 initial="initial"
                 animate="animate"
                 exit="exit"
-                className="flex w-full min-w-0 flex-col gap-4"
+                className="flex w-full min-w-0 flex-col gap-3 md:gap-4"
                 ref={taskRef}
               >
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-12 md:col-span-8">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-12 md:gap-4">
+                  <div className="col-span-1 md:col-span-8">
                     <DailyTasks tasks={dailyTasks} onToggle={toggleTask} onAdd={addTask} onDelete={deleteTask} />
                   </div>
-                  <div className="col-span-12 md:col-span-4">
+                  <div className="col-span-1 md:col-span-4">
                     <DailyProgress
                       tasksTotal={tasksTotal}
                       tasksDone={tasksDone}
@@ -659,7 +720,7 @@ function CommandCenterInner() {
                     />
                   </div>
                 </div>
-                <div className="col-span-12">
+                <div className="col-span-1">
                   <WeeklyGoals
                     goals={weeklyGoals}
                     onAddGoal={addWeeklyGoal}
@@ -670,7 +731,7 @@ function CommandCenterInner() {
                     onSaveDailyNote={handleSaveDailyNote}
                   />
                 </div>
-                <div className="col-span-12">
+                <div className="col-span-1">
                   <MonthlyTaskProgress 
                     dailyHistory={dailyHistory} 
                     weeklyGoals={weeklyGoals}
@@ -692,12 +753,12 @@ function CommandCenterInner() {
                 initial="initial"
                 animate="animate"
                 exit="exit"
-                className="flex w-full min-w-0 flex-col gap-4"
+                className="flex w-full min-w-0 flex-col gap-3 md:gap-4"
                 ref={goalRef}
               >
                 {/* Top Row - Progress Cards */}
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-12 md:col-span-6">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
+                  <div className="col-span-1">
                     <DailyProgress
                       tasksTotal={tasksTotal}
                       tasksDone={tasksDone}
@@ -705,7 +766,7 @@ function CommandCenterInner() {
                       goalsDone={goalsDone}
                     />
                   </div>
-                  <div className="col-span-12 md:col-span-6">
+                  <div className="col-span-1">
                     <MoodTracker mood={mood} lastMoodDate={lastMoodDate} onMoodChange={setMood} />
                   </div>
                 </div>
@@ -743,8 +804,8 @@ function QuickStat({
 
   return (
     <div className="flex items-center justify-between rounded-xl bg-secondary/50 px-3 py-2.5">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className={`rounded-lg px-2.5 py-1 text-sm font-bold ${colorClasses[color]}`}>
+      <span className="text-xs text-muted-foreground md:text-sm">{label}</span>
+      <span className={`rounded-lg px-2 py-1 text-xs font-bold md:px-2.5 md:text-sm ${colorClasses[color]}`}>
         {value}
       </span>
     </div>
@@ -753,7 +814,7 @@ function QuickStat({
 
 export default function CommandCenter() {
   return (
-    <div className="w-3/4 min-w-3/4 mx-auto my-8">
+    <div className="w-full md:mx-auto md:my-8 md:w-3/4 md:min-w-3/4">
       <ToastProvider>
         <CommandCenterInner />
       </ToastProvider>

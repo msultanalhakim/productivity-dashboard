@@ -230,40 +230,40 @@ export function MonthlyTaskProgress({
           {viewMode !== "month" ? (
             <button
               onClick={viewMode === "week" ? backToMonth : backToWeek}
-              className="flex items-center gap-1.5 text-sm text-cyan hover:text-cyan/80 transition-colors"
+              className="flex items-center gap-1 text-xs sm:text-sm text-cyan hover:text-cyan/80 transition-colors"
             >
-              <ChevronLeft className="h-4 w-4" />
-              Kembali
+              <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Kembali</span>
             </button>
           ) : (
             <>
               <div className="h-1 w-1 rounded-full bg-cyan"></div>
-              <h2 className="text-base font-semibold text-foreground">Progress Tugas</h2>
+              <h2 className="text-sm sm:text-base font-semibold text-foreground">Progress Tugas</h2>
             </>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <button
             onClick={goToPreviousMonth}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             aria-label="Bulan sebelumnya"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>
-          <span className="min-w-[140px] text-center text-sm font-medium text-foreground">
+          <span className="min-w-[110px] sm:min-w-[140px] text-center text-xs sm:text-sm font-medium text-foreground">
             {getMonthName(currentDate)}
           </span>
           <button
             onClick={goToNextMonth}
             disabled={!canGoNext()}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+            className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg transition-colors ${
               canGoNext()
                 ? "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 : "text-muted-foreground/30 cursor-not-allowed"
             }`}
             aria-label="Bulan selanjutnya"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>
         </div>
       </div>
@@ -278,7 +278,7 @@ export function MonthlyTaskProgress({
             className="flex flex-col gap-3"
           >
             {/* Day Names */}
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1 md:gap-2">
               {dayNames.map((name, index) => (
                 <div
                   key={name}
@@ -298,7 +298,7 @@ export function MonthlyTaskProgress({
               {weeks.map((week, weekIndex) => (
                 <div
                   key={weekIndex}
-                  className="grid grid-cols-7 gap-2"
+                  className="grid grid-cols-7 gap-1 md:gap-2"
                 >
                   {week.map((day, dayIndex) => {
                     const status = getTaskStatusForDay(day)
@@ -330,7 +330,7 @@ export function MonthlyTaskProgress({
                       >
                         {day > 0 && (
                           <>
-                            <span className={`text-lg font-bold ${
+                            <span className={`text-base md:text-lg font-bold ${
                               status === "complete" ? "text-neon" :
                               status === "partial" ? "text-cyan" :
                               status === "incomplete" ? "text-crimson" :
@@ -402,7 +402,7 @@ export function MonthlyTaskProgress({
                       }`}
                     >
                       <div className="flex flex-col items-center min-w-[50px]">
-                        <span className={`text-2xl font-bold ${
+                        <span className={`text-base md:text-lg md:text-xl md:text-2xl font-bold ${
                           isDaySunday ? "text-crimson" : "text-foreground"
                         }`}>{day}</span>
                         <span className={`text-[10px] uppercase tracking-wide ${
@@ -468,7 +468,7 @@ export function MonthlyTaskProgress({
                 <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-cyan/10 to-transparent p-4 border border-cyan/20">
                   <Calendar className="h-6 w-6 text-cyan" />
                   <div>
-                    <div className="text-xl font-bold text-foreground">
+                    <div className="text-base md:text-lg md:text-xl font-bold text-foreground">
                       {selectedDay} {getMonthName(currentDate).split(" ")[0]}
                     </div>
                     <div className="text-sm text-muted-foreground">

@@ -210,7 +210,7 @@ export function LongTermGoals({ goals, onAdd, onDelete, onComplete }: LongTermGo
           <GlassCard className="flex flex-col gap-2 p-4">
             <div className="flex items-center justify-between">
               <Target className="h-5 w-5 text-cyan" />
-              <span className="text-2xl font-bold text-cyan">{activeGoals.length}</span>
+              <span className="text-xl md:text-2xl font-bold text-cyan">{activeGoals.length}</span>
             </div>
             <span className="text-xs text-muted-foreground">Aktif</span>
           </GlassCard>
@@ -218,7 +218,7 @@ export function LongTermGoals({ goals, onAdd, onDelete, onComplete }: LongTermGo
           <GlassCard className="flex flex-col gap-2 p-4">
             <div className="flex items-center justify-between">
               <CheckCircle2 className="h-5 w-5 text-neon" />
-              <span className="text-2xl font-bold text-neon">{completedGoals.length}</span>
+              <span className="text-xl md:text-2xl font-bold text-neon">{completedGoals.length}</span>
             </div>
             <span className="text-xs text-muted-foreground">Tercapai</span>
           </GlassCard>
@@ -226,7 +226,7 @@ export function LongTermGoals({ goals, onAdd, onDelete, onComplete }: LongTermGo
           <GlassCard className="flex flex-col gap-2 p-4">
             <div className="flex items-center justify-between">
               <XCircle className="h-5 w-5 text-crimson" />
-              <span className="text-2xl font-bold text-crimson">{failedGoals.length}</span>
+              <span className="text-xl md:text-2xl font-bold text-crimson">{failedGoals.length}</span>
             </div>
             <span className="text-xs text-muted-foreground">Gagal</span>
           </GlassCard>
@@ -234,7 +234,7 @@ export function LongTermGoals({ goals, onAdd, onDelete, onComplete }: LongTermGo
           <GlassCard className="flex flex-col gap-2 p-4">
             <div className="flex items-center justify-between">
               <TrendingUp className="h-5 w-5 text-neon" />
-              <span className="text-2xl font-bold text-foreground">
+              <span className="text-xl md:text-2xl font-bold text-foreground">
                 {goals.length > 0 ? Math.round((completedGoals.length / goals.length) * 100) : 0}%
               </span>
             </div>
@@ -307,7 +307,7 @@ export function LongTermGoals({ goals, onAdd, onDelete, onComplete }: LongTermGo
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {currentGoals.map((goal) => renderGoalCard(goal))}
               </div>
             )}
@@ -334,7 +334,7 @@ export function LongTermGoals({ goals, onAdd, onDelete, onComplete }: LongTermGo
               className="w-full max-w-md overflow-hidden rounded-xl border border-border bg-card shadow-xl"
             >
               {/* Header */}
-              <div className="border-b border-border px-6 py-4">
+              <div className="border-b border-border px-4 md:px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary">
@@ -355,7 +355,7 @@ export function LongTermGoals({ goals, onAdd, onDelete, onComplete }: LongTermGo
               </div>
 
               {/* Form */}
-              <form onSubmit={handleSubmit} className="space-y-4 p-6">
+              <form onSubmit={handleSubmit} className="space-y-4 p-4 md:p-6">
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground">Judul Goal</label>
                   <input

@@ -91,7 +91,7 @@
     align-items: center;
   }
   main {
-    margin:0
+    margin: 0;
   }
 }
 
@@ -195,4 +195,34 @@
 .dark ::selection {
   background: hsl(var(--cyan) / 0.3);
   color: hsl(var(--foreground));
+}
+
+/* Mobile responsive improvements */
+@media (max-width: 768px) {
+  /* Ensure horizontal scrolling doesn't break layout */
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Make navigation scrollable on mobile */
+  nav {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Optimize touch targets */
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Better focus states for accessibility */
+*:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
 }

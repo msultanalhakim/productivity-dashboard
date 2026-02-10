@@ -21,7 +21,6 @@ const GLOW_MAP = {
   crimson: "0 0 20px hsl(var(--crimson) / 0.3)",
 }
 
-// Track color akan menyesuaikan dengan theme
 const TRACK_COLOR = "hsl(var(--muted))"
 
 export function ProgressRing({ label, value, max, color }: ProgressRingProps) {
@@ -32,16 +31,15 @@ export function ProgressRing({ label, value, max, color }: ProgressRingProps) {
   const offset = circumference - (pct / 100) * circumference
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="relative">
+    <div className="flex flex-col items-center gap-2 md:gap-3">
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28">
         <svg
-          width="120"
-          height="120"
+          width="100%"
+          height="100%"
           viewBox="0 0 120 120"
           className="-rotate-90"
           aria-label={`${label}: ${Math.round(pct)}%`}
         >
-          {/* Outer glow ring */}
           <circle
             cx="60"
             cy="60"
@@ -53,7 +51,6 @@ export function ProgressRing({ label, value, max, color }: ProgressRingProps) {
             strokeLinecap="round"
           />
           
-          {/* Track - will adapt to theme */}
           <circle
             cx="60"
             cy="60"
@@ -63,7 +60,6 @@ export function ProgressRing({ label, value, max, color }: ProgressRingProps) {
             strokeWidth={strokeWidth}
           />
           
-          {/* Progress */}
           <circle
             cx="60"
             cy="60"
@@ -81,10 +77,9 @@ export function ProgressRing({ label, value, max, color }: ProgressRingProps) {
           />
         </svg>
         
-        {/* Center percentage */}
         <div className="absolute inset-0 flex items-center justify-center">
           <span 
-            className="text-3xl font-bold"
+            className="text-lg sm:text-xl md:text-2xl font-bold"
             style={{ color: COLOR_MAP[color] }}
           >
             {Math.round(pct)}%
@@ -93,8 +88,8 @@ export function ProgressRing({ label, value, max, color }: ProgressRingProps) {
       </div>
       
       <div className="flex flex-col items-center gap-0.5">
-        <span className="text-sm font-medium text-muted-foreground">{label}</span>
-        <span className="text-xs text-muted-foreground/70">
+        <span className="text-xs sm:text-sm font-medium text-muted-foreground">{label}</span>
+        <span className="text-[10px] sm:text-xs text-muted-foreground/70">
           {value} dari {max}
         </span>
       </div>
@@ -116,14 +111,14 @@ export function DailyProgress({
   goalsDone,
 }: DailyProgressProps) {
   return (
-    <GlassCard className="flex h-full w-full flex-col gap-6 p-6">
+    <GlassCard className="flex h-full w-full flex-col gap-4 p-4 sm:p-5 md:p-6">
       <div className="flex items-center gap-2">
         <div className="h-1 w-1 rounded-full bg-cyan"></div>
-        <span className="text-sm font-semibold text-foreground">
+        <span className="text-xs sm:text-sm font-semibold text-foreground">
           Progress Harian
         </span>
       </div>
-      <div className="flex flex-1 items-center justify-around gap-8">
+      <div className="flex flex-1 items-center justify-around gap-3 sm:gap-6 md:gap-8">
         <ProgressRing
           label="Tugas"
           value={tasksDone}

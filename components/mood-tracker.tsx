@@ -22,11 +22,9 @@ const moods: { key: Mood; label: string }[] = [
 ]
 
 export function MoodTracker({ mood, onMoodChange, lastMoodDate }: MoodTrackerProps) {
-  // Check if mood needs to be reset (different day)
   const today = new Date().toISOString().split('T')[0]
   const needsReset = lastMoodDate && lastMoodDate !== today
   
-  // If needs reset, automatically reset
   if (needsReset && mood !== null) {
     onMoodChange(null)
   }
@@ -34,9 +32,9 @@ export function MoodTracker({ mood, onMoodChange, lastMoodDate }: MoodTrackerPro
   const isSelected = mood !== null
 
   return (
-    <GlassCard className="flex h-full w-full flex-col gap-3">
+    <GlassCard className="flex h-full w-full flex-col gap-3 p-4 sm:p-5 md:p-6">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-muted-foreground">
+        <span className="text-xs sm:text-sm font-medium text-muted-foreground">
           Mood Hari Ini
         </span>
         <AnimatePresence>
@@ -59,46 +57,42 @@ export function MoodTracker({ mood, onMoodChange, lastMoodDate }: MoodTrackerPro
       <div className="relative flex flex-1 items-center justify-center">
         <AnimatePresence mode="wait">
           {!isSelected ? (
-            /* Grid layout responsif untuk semua mood */
             <motion.div
-              key="all-moods"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="grid w-full grid-cols-3 gap-2 xs:gap-2.5 sm:grid-cols-5 sm:gap-3 md:gap-4"
-            >
-              {moods.map((m, idx) => (
-                <motion.button
-                  key={m.key}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => onMoodChange(m.key)}
-                  className={cn(
-                    "group relative flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl px-2 py-3 transition-all hover:bg-[hsl(187_100%_50%/0.08)] active:bg-[hsl(187_100%_50%/0.12)]",
-                    "sm:gap-2 sm:px-3 sm:py-4",
-                    // Item ke-3 di mobile akan full width di baris kedua
-                    idx === 2 && "col-span-3 sm:col-span-1"
-                  )}
-                  aria-label={`Pilih mood: ${m.label}`}
+            key="all-moods"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="grid w-full grid-cols-2 gap-1 sm:grid-cols-3 sm:gap-1.5 md:grid-cols-5 md:gap-3"
+          >
+            {moods.map((m, idx) => (
+              <motion.button
+                key={m.key}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => onMoodChange(m.key)}
+                className={cn(
+                  "group relative flex flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 transition-all hover:bg-[hsl(187_100%_50%/0.08)] active:bg-[hsl(187_100%_50%/0.12)]",
+                  "sm:gap-2 sm:px-3 sm:py-3 md:aspect-square md:gap-2 md:px-3 md:py-4",
+                  idx === 4 && "col-span-2 sm:col-span-1"
+                )}
+                aria-label={`Pilih mood: ${m.label}`}
+              >
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-cyan/0 to-cyan/0 opacity-0 transition-opacity group-hover:from-cyan/5 group-hover:to-cyan/10 group-hover:opacity-100" />
+                
+                <span 
+                  className="relative z-10 text-5xl leading-none transition-transform group-hover:scale-110 sm:text-6xl md:text-4xl" 
+                  role="img" 
+                  aria-hidden="true"
                 >
-                  {/* Glow effect on hover */}
-                  <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-cyan/0 to-cyan/0 opacity-0 transition-opacity group-hover:from-cyan/5 group-hover:to-cyan/10 group-hover:opacity-100" />
-                  
-                  <span 
-                    className="relative z-10 text-2xl leading-none transition-transform group-hover:scale-110 xs:text-3xl sm:text-4xl md:text-5xl" 
-                    role="img" 
-                    aria-hidden="true"
-                  >
-                    {MOOD_EMOJI[m.key]}
-                  </span>
-                  <span className="relative z-10 text-[10px] font-medium text-muted-foreground transition-colors group-hover:text-foreground xs:text-xs sm:text-sm">
-                    {m.label}
-                  </span>
-                </motion.button>
-              ))}
-            </motion.div>
+                  {MOOD_EMOJI[m.key]}
+                </span>
+                <span className="relative z-10 text-xs font-medium text-muted-foreground transition-colors group-hover:text-foreground sm:text-xs md:text-sm">
+                  {m.label}
+                </span>
+              </motion.button>
+            ))}
+          </motion.div>
           ) : (
-            /* Single selected mood zoomed in */
             <motion.div
               key="selected-mood"
               initial={{ opacity: 0, scale: 0.5 }}
@@ -108,7 +102,7 @@ export function MoodTracker({ mood, onMoodChange, lastMoodDate }: MoodTrackerPro
               className="flex flex-col items-center gap-2 sm:gap-3"
             >
               <motion.span
-                className="text-5xl leading-none xs:text-6xl sm:text-7xl md:text-8xl lg:text-9xl"
+                className="text-5xl leading-none sm:text-6xl md:text-7xl lg:text-8xl"
                 role="img"
                 aria-hidden="true"
                 animate={{ scale: [1, 1.08, 1] }}
@@ -116,7 +110,7 @@ export function MoodTracker({ mood, onMoodChange, lastMoodDate }: MoodTrackerPro
               >
                 {MOOD_EMOJI[mood]}
               </motion.span>
-              <span className="text-sm font-semibold text-cyan xs:text-base sm:text-lg md:text-xl">
+              <span className="text-sm font-semibold text-cyan sm:text-base md:text-lg">
                 {moods.find((m) => m.key === mood)?.label}
               </span>
             </motion.div>

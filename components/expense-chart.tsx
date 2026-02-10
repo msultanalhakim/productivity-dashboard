@@ -100,7 +100,7 @@ export function ExpenseChart({ expenses }: ExpenseChartProps) {
           </AreaChart>
         </ResponsiveContainer>
       </div>
-      <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
+      <div className="flex items-center justify-center gap-4 md:gap-6 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-cyan" /> Masuk
         </span>
