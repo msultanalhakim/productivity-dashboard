@@ -7,6 +7,7 @@ import {
 } from "./store"
 
 const SESSION_KEY = "command-center-session"
+const LAST_ACTIVITY_KEY = "command-center-activity"
 const IDLE_TIMEOUT = 60 * 40 * 1000 // 40 minutes in milliseconds
 
 const FIXED_DB_ID = "dashboard"
@@ -38,15 +39,18 @@ function generateSessionId(): string {
 // Get current session ID
 export function getCurrentSessionId(): string | null {
   if (typeof window === "undefined") return null
-  return sessionStorage.getItem(SESSION_KEY)
+  // FIXED: Use localStorage instead of sessionStorage so it persists across tabs and browser sessions
+  return localStorage.getItem(SESSION_KEY)
 }
 
 // Create new session
 export function createSession(): string {
   if (typeof window === "undefined") return ""
   const sessionId = generateSessionId()
-  sessionStorage.setItem(SESSION_KEY, sessionId)
-  localStorage.setItem("lastActivity", Date.now().toString())
+  // FIXED: Store in localStorage so it persists
+  localStorage.setItem(SESSION_KEY, sessionId)
+  localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString())
+  console.log("[createSession] New session created:", sessionId)
   return sessionId
 }
 
@@ -55,26 +59,39 @@ export function isSessionValid(): boolean {
   if (typeof window === "undefined") return false
   
   const sessionId = getCurrentSessionId()
-  if (!sessionId) return false
+  if (!sessionId) {
+    console.log("[isSessionValid] No session ID found")
+    return false
+  }
 
-  const lastActivity = localStorage.getItem("lastActivity")
-  if (!lastActivity) return false
+  const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY)
+  if (!lastActivity) {
+    console.log("[isSessionValid] No last activity found")
+    return false
+  }
 
   const timeSinceActivity = Date.now() - parseInt(lastActivity)
-  return timeSinceActivity < IDLE_TIMEOUT
+  const isValid = timeSinceActivity < IDLE_TIMEOUT
+  
+  if (!isValid) {
+    console.log("[isSessionValid] Session expired. Idle for:", Math.floor(timeSinceActivity / 1000 / 60), "minutes")
+  }
+  
+  return isValid
 }
 
 // Update last activity
 export function updateActivity(): void {
   if (typeof window === "undefined") return
-  localStorage.setItem("lastActivity", Date.now().toString())
+  localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString())
 }
 
-// Clear session
+// Clear session (only called on manual logout, not on idle timeout)
 export function clearSession(): void {
   if (typeof window === "undefined") return
-  sessionStorage.removeItem(SESSION_KEY)
-  localStorage.removeItem("lastActivity")
+  console.log("[clearSession] Clearing session (manual logout)")
+  localStorage.removeItem(SESSION_KEY)
+  localStorage.removeItem(LAST_ACTIVITY_KEY)
 }
 
 // ===== SUPABASE DATABASE STORAGE =====
@@ -107,6 +124,7 @@ export async function loadState(): Promise<AppState> {
       const state = { ...DEFAULT_STATE, ...data.data } as AppState
       stateCache = state
       lastFetch = Date.now()
+      console.log("[loadState] Loaded state from Supabase")
       return state
     }
 
@@ -115,6 +133,7 @@ export async function loadState(): Promise<AppState> {
       // No rows found - first time user
       stateCache = DEFAULT_STATE
       lastFetch = Date.now()
+      console.log("[loadState] No data found, using default state")
       return DEFAULT_STATE
     }
 
@@ -156,6 +175,8 @@ export async function saveState(state: Partial<AppState>): Promise<void> {
       console.error("Error saving to Supabase:", error)
       throw error
     }
+    
+    console.log("[saveState] State saved to Supabase successfully")
   } catch (error) {
     console.error("Error saving state:", error)
     throw error
@@ -168,6 +189,7 @@ export async function saveState(state: Partial<AppState>): Promise<void> {
 export function clearCache(): void {
   stateCache = null
   lastFetch = 0
+  console.log("[clearCache] Cache cleared")
 }
 
 // ===== PASSWORD FUNCTIONS =====
@@ -298,8 +320,11 @@ export async function performDailyReset(): Promise<void> {
       mood: null,
       lastDailyReset: today,
     })
+    
+    console.log("[performDailyReset] Daily reset completed for:", resetDate)
   } else {
     await saveState({ lastDailyReset: today })
+    console.log("[performDailyReset] Daily reset completed (no tasks/goals)")
   }
 }
 
@@ -337,8 +362,11 @@ export async function performWeeklyReset(): Promise<void> {
       weeklyNotes: "",
       lastWeeklyReset: currentWeekStart,
     })
+    
+    console.log("[performWeeklyReset] Weekly reset completed for:", weekLabel)
   } else {
     await saveState({ lastWeeklyReset: currentWeekStart })
+    console.log("[performWeeklyReset] Weekly reset completed (no goals)")
   }
 }
 
