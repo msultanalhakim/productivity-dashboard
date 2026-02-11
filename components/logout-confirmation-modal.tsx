@@ -52,10 +52,10 @@ export function LogoutConfirmationModal({
             {/* Content */}
             <div className="mb-6">
               <p className="text-sm text-foreground">
-                Yakin ingin logout?
+                Apakah Anda yakin ingin logout?
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                Data Anda tetap tersimpan di cloud dan bisa diakses kembali setelah login.
+                Data Anda akan tetap tersimpan jika anda logout.
               </p>
             </div>
 
@@ -72,7 +72,7 @@ export function LogoutConfirmationModal({
                 type="button"
                 onClick={onConfirm}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-crimson/15 py-2.5 text-sm font-semibold text-crimson transition-colors hover:bg-crimson/25"
-              >
+            >
                 <LogOut className="h-4 w-4" />
                 Logout
               </button>

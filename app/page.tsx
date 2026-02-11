@@ -35,6 +35,9 @@ import {
   getTodayString,
   getCurrentDayName,
   daysUntil,
+  recalculateWeeklyGoalsInHistory, // ⭐ CRITICAL FIX: Import fungsi ini
+  updateDailyHistoryForToday,
+  updateWeeklyProgressForToday,
   type NavSection,
   type Mood,
   type Expense,
@@ -221,63 +224,27 @@ function CommandCenterInner() {
     toast,
   ])
 
-  // Update daily history when tasks/goals change
+  // ⭐ IMPROVED: Update daily history when tasks/goals change
+  // Using updateDailyHistoryForToday helper from store.ts
   const updateTodayHistory = useCallback(() => {
     if (isLocked || isLoading) return
     
     const today = getTodayString()
-    const todayDayName = getCurrentDayName()
-    
-    const todayGoals = weeklyGoals.filter((g) => g.day === todayDayName)
-    const completedGoals = todayGoals.filter((g) => g.done)
     const todayNote = dailyNotes.find(n => n.date === today)
     
-    setDailyHistory((prev) => {
-      if (dailyTasks.length === 0 && todayGoals.length === 0 && !todayNote?.note?.trim()) {
-        return prev.filter((h) => h.date !== today)
-      }
-      
-      const completedGoalsList = completedGoals.map((g) => g.text)
-      const failedTasks = dailyTasks.filter((t) => !t.done)
-      const failedGoals = todayGoals.filter((g) => !g.done)
-      
-      const newRecord = {
-        date: today,
-        totalTasks: dailyTasks.length,
-        completedTasks: dailyTasks.filter((t) => t.done).length,
-        weeklyGoalsCompleted: completedGoals.length,
-        weeklyGoalsTotal: todayGoals.length,
-        completedGoalsList,
-        failedTasksList: failedTasks.map(t => t.text),
-        failedGoalsList: failedGoals.map(g => g.text),
-        hasNotes: !!todayNote?.note?.trim(),
-        dailyNote: todayNote?.note?.trim() || undefined,
-      }
-
-      const existing = prev.find((h) => h.date === today)
-      
-      if (!existing) {
-        return [...prev, newRecord]
-      }
-      
-      const hasChanges = 
-        existing.completedTasks !== newRecord.completedTasks ||
-        existing.totalTasks !== newRecord.totalTasks ||
-        existing.weeklyGoalsCompleted !== newRecord.weeklyGoalsCompleted ||
-        existing.weeklyGoalsTotal !== newRecord.weeklyGoalsTotal ||
-        JSON.stringify(existing.completedGoalsList) !== JSON.stringify(completedGoalsList) ||
-        JSON.stringify(existing.failedTasksList) !== JSON.stringify(newRecord.failedTasksList) ||
-        JSON.stringify(existing.failedGoalsList) !== JSON.stringify(newRecord.failedGoalsList) ||
-        existing.hasNotes !== newRecord.hasNotes ||
-        existing.dailyNote !== newRecord.dailyNote
-      
-      if (hasChanges) {
-        return prev.map((h) => (h.date === today ? newRecord : h))
-      }
-      
-      return prev
-    })
-  }, [dailyTasks, weeklyGoals, dailyNotes, isLocked, isLoading])
+    // Use helper function from store.ts
+    const updatedHistory = updateDailyHistoryForToday(
+      dailyHistory,
+      dailyTasks,
+      weeklyGoals,
+      todayNote?.note
+    )
+    
+    // Only update if there are actual changes
+    if (JSON.stringify(updatedHistory) !== JSON.stringify(dailyHistory)) {
+      setDailyHistory(updatedHistory)
+    }
+  }, [dailyTasks, weeklyGoals, dailyNotes, dailyHistory, isLocked, isLoading])
 
   useEffect(() => {
     updateTodayHistory()
@@ -379,19 +346,80 @@ function CommandCenterInner() {
     setDailyTasks((prev) => prev.filter((t) => t.id !== id))
   }, [])
 
+  // ⭐ CRITICAL FIX: Add Weekly Goal Handler
   const addWeeklyGoal = useCallback((day: string, text: string) => {
-    setWeeklyGoals((prev) => [...prev, { id: generateId(), day, text, done: false }])
-  }, [])
-
-  const toggleWeeklyGoal = useCallback((id: string) => {
-    setWeeklyGoals((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, done: !g.done } : g))
+    const newGoal: WeeklyGoal = { id: generateId(), day, text, done: false }
+    const updatedGoals = [...weeklyGoals, newGoal]
+    
+    // ⭐ CRITICAL: Recalculate history untuk SEMUA hari dalam minggu
+    const updatedHistory = recalculateWeeklyGoalsInHistory(
+      dailyHistory,
+      updatedGoals
     )
-  }, [])
+    
+    // Update weekly progress
+    const updatedProgress = updateWeeklyProgressForToday(
+      weeklyProgress,
+      updatedGoals
+    )
+    
+    // Update state
+    setWeeklyGoals(updatedGoals)
+    setDailyHistory(updatedHistory)
+    setWeeklyProgress(updatedProgress)
+    
+    console.log("[addWeeklyGoal] Goal added and history recalculated")
+  }, [weeklyGoals, dailyHistory, weeklyProgress])
 
+  // ⭐ CRITICAL FIX: Toggle Weekly Goal Handler
+  const toggleWeeklyGoal = useCallback((id: string) => {
+    const updatedGoals = weeklyGoals.map((g) =>
+      g.id === id ? { ...g, done: !g.done } : g
+    )
+    
+    // ⭐ CRITICAL: Recalculate history
+    const updatedHistory = recalculateWeeklyGoalsInHistory(
+      dailyHistory,
+      updatedGoals
+    )
+    
+    // Update weekly progress
+    const updatedProgress = updateWeeklyProgressForToday(
+      weeklyProgress,
+      updatedGoals
+    )
+    
+    // Update state
+    setWeeklyGoals(updatedGoals)
+    setDailyHistory(updatedHistory)
+    setWeeklyProgress(updatedProgress)
+    
+    console.log("[toggleWeeklyGoal] Goal toggled and history recalculated")
+  }, [weeklyGoals, dailyHistory, weeklyProgress])
+
+  // ⭐ CRITICAL FIX: Delete Weekly Goal Handler
   const deleteWeeklyGoal = useCallback((id: string) => {
-    setWeeklyGoals((prev) => prev.filter((g) => g.id !== id))
-  }, [])
+    const updatedGoals = weeklyGoals.filter((g) => g.id !== id)
+    
+    // ⭐ CRITICAL: Recalculate history
+    const updatedHistory = recalculateWeeklyGoalsInHistory(
+      dailyHistory,
+      updatedGoals
+    )
+    
+    // Update weekly progress
+    const updatedProgress = updateWeeklyProgressForToday(
+      weeklyProgress,
+      updatedGoals
+    )
+    
+    // Update state
+    setWeeklyGoals(updatedGoals)
+    setDailyHistory(updatedHistory)
+    setWeeklyProgress(updatedProgress)
+    
+    console.log("[deleteWeeklyGoal] Goal deleted and history recalculated")
+  }, [weeklyGoals, dailyHistory, weeklyProgress])
 
   const addLongTermGoal = useCallback((goal: LongTermGoal) => {
     setLongTermGoals((prev) => [...prev, goal])
