@@ -1,6 +1,6 @@
 // Types
 export type NavSection = "dashboard" | "keuangan" | "tugas" | "goals"
-export type Mood = "senang" | "biasa" | "sedih" | "marah" | "fokus"
+export type Mood = "semangat" | "fokus" | "mager" | "sedih" | "marah"
 
 export interface Expense {
   id: string
@@ -110,11 +110,11 @@ export const EXPENSE_CATEGORIES = [
 ]
 
 export const MOOD_EMOJI: Record<Mood, string> = {
-  senang: "😊",
-  biasa: "😐",
+  semangat: "😎",
+  fokus: "🧠",
+  mager: "😫",
   sedih: "😢",
   marah: "😡",
-  fokus: "🧠",
 }
 
 // Helper functions

@@ -55,31 +55,6 @@ const playSuccessSound = () => {
   }
 }
 
-// NEW: Get date string for a specific day name in current week
-const getDateForDayInCurrentWeek = (dayName: string): string => {
-  const today = new Date()
-  const currentDayIndex = today.getDay()
-  
-  // Convert day name to index (0 = Minggu, 1 = Senin, etc.)
-  const dayOrder = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
-  const targetDayIndex = dayOrder.indexOf(dayName)
-  
-  if (targetDayIndex === -1) return getTodayDateString()
-  
-  // Calculate difference in days
-  let diff = targetDayIndex - currentDayIndex
-  
-  // If the day already passed this week, get the date for that day this week
-  // (we want the date within current week, even if it's in the past)
-  const targetDate = new Date(today)
-  targetDate.setDate(today.getDate() + diff)
-  
-  const year = targetDate.getFullYear()
-  const month = String(targetDate.getMonth() + 1).padStart(2, '0')
-  const day = String(targetDate.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 // Get today's date string helper
 const getTodayDateString = () => {
   const now = new Date()
@@ -128,12 +103,11 @@ export function WeeklyGoals({
   
   const isSelectedDayPassed = selectedDay ? isDayPassed(selectedDay) : false
 
-  // NEW: Load note for selected day (based on that day's date in current week)
+  // Load existing note HANYA saat modal dibuka
   useEffect(() => {
     if (selectedDay && !isNoteLoaded) {
-      // Get the date for the selected day in current week
-      const selectedDayDate = getDateForDayInCurrentWeek(selectedDay)
-      const existingNote = dailyNotes.find(n => n.date === selectedDayDate && n.day === selectedDay)
+      const todayDate = getTodayDateString()
+      const existingNote = dailyNotes.find(n => n.date === todayDate && n.day === selectedDay)
       setDailyNote(existingNote?.note || "")
       setIsNoteLoaded(true)
     }
@@ -142,7 +116,7 @@ export function WeeklyGoals({
       setDailyNote("")
       setIsNoteLoaded(false)
     }
-  }, [selectedDay, dailyNotes])
+  }, [selectedDay, dailyNotes]) // Tambahkan dailyNotes sebagai dependency
 
   const handleToggleGoal = (id: string) => {
     const goal = goals.find((g) => g.id === id)
@@ -195,6 +169,7 @@ export function WeeklyGoals({
     setIsNoteLoaded(false)
   }
 
+  // Handler untuk textarea
   const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setDailyNote(e.target.value)
   }
@@ -217,9 +192,9 @@ export function WeeklyGoals({
             const previewGoals = dayGoals.slice(0, 2)
             const hasMore = dayGoals.length > 2
             
-            // NEW: Check note based on that day's date in current week
-            const dayDate = getDateForDayInCurrentWeek(day)
-            const hasNote = dailyNotes.some(n => n.date === dayDate && n.day === day && n.note.trim())
+            // Check if there's a note for today's date and this day
+            const todayDate = getTodayDateString()
+            const hasNote = dailyNotes.some(n => n.date === todayDate && n.day === day && n.note.trim())
             
             return (
               <button
@@ -339,11 +314,7 @@ export function WeeklyGoals({
                       <p className="text-xs text-muted-foreground">
                         {selectedDay === todayId && "Hari ini • "}
                         {isSelectedDayPassed && "Hari sudah berlalu • "}
-                        {(() => {
-                          const dayDate = getDateForDayInCurrentWeek(selectedDay)
-                          const date = new Date(dayDate + 'T00:00:00')
-                          return date.toLocaleDateString("id-ID", { day: "numeric", month: "long" })
-                        })()}
+                        {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long" })}
                       </p>
                     </div>
                   </div>
@@ -469,11 +440,11 @@ export function WeeklyGoals({
                   </div>
                 </div>
 
-                {/* Daily Note */}
+                {/* Daily Note - Conditional based on isSelectedDayToday */}
                 <div className="space-y-2 border-t border-border/50 pt-4">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium text-muted-foreground">
-                      Catatan untuk {selectedDay}
+                      {isSelectedDayToday ? "Catatan Hari Ini" : "Catatan"}
                     </label>
                     {isSelectedDayToday && (
                       <button
@@ -495,7 +466,7 @@ export function WeeklyGoals({
                   {isSelectedDayToday ? (
                     <>
                       <textarea
-                        placeholder="Tulis catatan untuk hari ini..."
+                        placeholder="Tulis catatan singkat untuk hari ini..."
                         value={dailyNote}
                         onChange={handleNoteChange}
                         rows={3}
@@ -503,7 +474,7 @@ export function WeeklyGoals({
                         className="w-full resize-none rounded-lg border border-border/50 bg-background/50 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 transition-colors focus:border-cyan/50 focus:outline-none focus:ring-1 focus:ring-cyan/20 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <p className="text-[10px] text-muted-foreground/60">
-                        Catatan akan tersimpan untuk {getDateForDayInCurrentWeek(selectedDay)}
+                        Catatan akan tersimpan untuk tanggal {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
                       </p>
                     </>
                   ) : (

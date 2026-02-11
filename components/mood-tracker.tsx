@@ -14,11 +14,11 @@ interface MoodTrackerProps {
 }
 
 const moods: { key: Mood; label: string }[] = [
-  { key: "senang", label: "Senang" },
-  { key: "biasa", label: "Biasa" },
+  { key: "semangat", label: "Semangat" },
+  { key: "fokus", label: "Fokus" },
+  { key: "mager", label: "Mager" },
   { key: "sedih", label: "Sedih" },
   { key: "marah", label: "Marah" },
-  { key: "fokus", label: "Fokus" },
 ]
 
 export function MoodTracker({ mood, onMoodChange, lastMoodDate }: MoodTrackerProps) {
