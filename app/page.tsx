@@ -464,6 +464,15 @@ function CommandCenterInner() {
     { id: "goals", icon: Target, label: "Goals" },
   ]
 
+  const handleLogout = useCallback(() => {
+    console.log("[CommandCenter] Logging out...")
+    setIsLocked(true)
+    // Reload window to reset all state
+    setTimeout(() => {
+      window.location.reload()
+    }, 100)
+  }, [])
+
   return (
     <div className="min-h-screen bg-background">
       {/* Scroll to Top Button */}
@@ -495,7 +504,11 @@ function CommandCenterInner() {
         </button>
       </div>
 
-      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      <SettingsModal 
+        isOpen={showSettings} 
+        onClose={() => setShowSettings(false)}
+        onLogout={handleLogout}  // Pass logout handler
+      />
 
       <main className="w-full px-4 py-4 pb-24 md:px-8 md:py-6">
         <div className="mx-auto w-full max-w-7xl">

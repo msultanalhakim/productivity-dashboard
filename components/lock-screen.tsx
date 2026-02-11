@@ -28,16 +28,11 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
     setError(false)
     
     try {
-      // Verify password dari Supabase
       const isValid = await verifyPassword(password)
       
       if (isValid) {
         console.log("[LockScreen] ✅ Password valid, authenticating...")
-        
-        // Set authenticated flag di localStorage
         setAuthenticated(true)
-        
-        // Trigger unlock callback
         onUnlock()
       } else {
         console.log("[LockScreen] ❌ Password invalid")
@@ -148,15 +143,10 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
             </button>
           </form>
 
-          {/* Info */}
-          <div className="mt-6 space-y-2">
-            <p className="text-center text-xs text-muted-foreground">
-              Data Anda aman tersimpan di Supabase
-            </p>
-            <p className="text-center text-xs text-muted-foreground/70">
-              Default password: <span className="font-mono text-cyan">sultan</span>
-            </p>
-          </div>
+          {/* Info - HAPUS BAGIAN INI */}
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Data Anda aman tersimpan di Supabase
+          </p>
         </div>
       </motion.div>
     </div>
