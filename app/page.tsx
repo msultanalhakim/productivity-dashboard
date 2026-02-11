@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Settings, Calendar, AlertTriangle, LayoutDashboard, Wallet, ListTodo, Target, ArrowUp, MoreVertical } from "lucide-react"
+import { Settings, Calendar, AlertTriangle, LayoutDashboard, Wallet, ListTodo, Target, ArrowUp } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { MusicPlayer } from "@/components/music-player"
 import { SaldoCard } from "@/components/saldo-card"
@@ -34,7 +34,6 @@ import {
   isOverdue,
   getTodayString,
   getCurrentDayName,
-  getWeekLabel,
   daysUntil,
   type NavSection,
   type Mood,
@@ -42,7 +41,6 @@ import {
   type DailyTask,
   type WeeklyGoal,
   type LongTermGoal,
-  type UnplannedTask,
   type WeeklyProgressEntry,
   type DailyNote,
 } from "@/lib/store"
@@ -58,7 +56,6 @@ interface WeeklyRecord {
 function CommandCenterInner() {
   const [isLocked, setIsLocked] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
-  const [showQuickMenu, setShowQuickMenu] = useState(false)
   const [activeNav, setActiveNav] = useState<NavSection>("dashboard")
   const [mood, setMood] = useState<Mood | null>(null)
   const [lastMoodDate, setLastMoodDate] = useState<string | null>(null)
@@ -69,9 +66,7 @@ function CommandCenterInner() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
 
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([])
-
   const [weeklyGoals, setWeeklyGoals] = useState<WeeklyGoal[]>([])
-
   const [longTermGoals, setLongTermGoals] = useState<LongTermGoal[]>([])
 
   const [dailyHistory, setDailyHistory] = useState<any[]>([])
@@ -91,7 +86,6 @@ function CommandCenterInner() {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 300)
     }
-
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
@@ -169,16 +163,14 @@ function CommandCenterInner() {
   
   // Auto-save to Supabase with debounce
   useEffect(() => {
-    if (isLoading) return  // Only check isLoading, not isLocked
+    if (isLoading) return
     
-    // Clear existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
     }
 
-    // Debounce save - wait 1 second after last change
     saveTimeoutRef.current = setTimeout(async () => {
-      if (!isAuthenticated()) return  // Add auth check
+      if (!isAuthenticated()) return
       
       try {
         await saveState({
@@ -225,28 +217,23 @@ function CommandCenterInner() {
     weeklyProgress,
     dailyNotes,
     currentMonth,
-    isLoading,  // Removed isLocked from dependencies
+    isLoading,
     toast,
   ])
 
-  // ✅ FIXED: Update daily history when tasks/goals change
+  // Update daily history when tasks/goals change
   const updateTodayHistory = useCallback(() => {
     if (isLocked || isLoading) return
     
     const today = getTodayString()
     const todayDayName = getCurrentDayName()
     
-    // Filter goals for today only
     const todayGoals = weeklyGoals.filter((g) => g.day === todayDayName)
     const completedGoals = todayGoals.filter((g) => g.done)
-    
-    // Get today's note if exists
     const todayNote = dailyNotes.find(n => n.date === today)
     
     setDailyHistory((prev) => {
-      // ✅ FIX: If no tasks AND no goals for today AND no note → remove entry
       if (dailyTasks.length === 0 && todayGoals.length === 0 && !todayNote?.note?.trim()) {
-        console.log('[updateTodayHistory] Removing today entry - no tasks, no goals, no note')
         return prev.filter((h) => h.date !== today)
       }
       
@@ -270,11 +257,9 @@ function CommandCenterInner() {
       const existing = prev.find((h) => h.date === today)
       
       if (!existing) {
-        console.log('[updateTodayHistory] Creating new history entry:', newRecord)
         return [...prev, newRecord]
       }
       
-      // Check if anything changed
       const hasChanges = 
         existing.completedTasks !== newRecord.completedTasks ||
         existing.totalTasks !== newRecord.totalTasks ||
@@ -287,7 +272,6 @@ function CommandCenterInner() {
         existing.dailyNote !== newRecord.dailyNote
       
       if (hasChanges) {
-        console.log('[updateTodayHistory] Updating history entry:', newRecord)
         return prev.map((h) => (h.date === today ? newRecord : h))
       }
       
@@ -295,7 +279,6 @@ function CommandCenterInner() {
     })
   }, [dailyTasks, weeklyGoals, dailyNotes, isLocked, isLoading])
 
-  // Call updateTodayHistory whenever dependencies change
   useEffect(() => {
     updateTodayHistory()
   }, [updateTodayHistory])
@@ -308,7 +291,6 @@ function CommandCenterInner() {
       setDailyNotes(updatedState.dailyNotes || [])
       setDailyHistory(updatedState.dailyHistory)
       toast("Catatan berhasil disimpan", "success")
-      console.log(`[handleSaveDailyNote] Note saved for ${day}:`, note)
     } catch (error) {
       console.error("[handleSaveDailyNote] Error saving note:", error)
       toast("Gagal menyimpan catatan", "error")
@@ -316,6 +298,7 @@ function CommandCenterInner() {
     }
   }, [toast])
 
+  // Calculations
   const now = new Date()
   const thisMonthExpenses = expenses.filter((e) => {
     const d = new Date(e.date)
@@ -369,6 +352,7 @@ function CommandCenterInner() {
     }
   }, [processedGoals, longTermGoals])
 
+  // Event Handlers
   const addExpense = useCallback((e: Expense) => {
     setExpenses((prev) => [e, ...prev])
   }, [])
@@ -427,6 +411,14 @@ function CommandCenterInner() {
     )
   }, [])
 
+  const handleLogout = useCallback(() => {
+    console.log("[CommandCenter] Logging out...")
+    setIsLocked(true)
+    setTimeout(() => {
+      window.location.reload()
+    }, 100)
+  }, [])
+
   const activeGoalsCount = processedGoals.filter((g) => g.status === "active").length
   
   const nearest3ActiveGoals = processedGoals
@@ -434,7 +426,7 @@ function CommandCenterInner() {
     .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     .slice(0, 3)
 
-  // Show loading state
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -446,6 +438,7 @@ function CommandCenterInner() {
     )
   }
 
+  // Lock screen
   if (isLocked) {
     return (
       <LockScreen 
@@ -463,15 +456,6 @@ function CommandCenterInner() {
     { id: "tugas", icon: ListTodo, label: "Tugas" },
     { id: "goals", icon: Target, label: "Goals" },
   ]
-
-  const handleLogout = useCallback(() => {
-    console.log("[CommandCenter] Logging out...")
-    setIsLocked(true)
-    // Reload window to reset all state
-    setTimeout(() => {
-      window.location.reload()
-    }, 100)
-  }, [])
 
   return (
     <div className="min-h-screen bg-background">
@@ -507,7 +491,7 @@ function CommandCenterInner() {
       <SettingsModal 
         isOpen={showSettings} 
         onClose={() => setShowSettings(false)}
-        onLogout={handleLogout}  // Pass logout handler
+        onLogout={handleLogout}
       />
 
       <main className="w-full px-4 py-4 pb-24 md:px-8 md:py-6">
