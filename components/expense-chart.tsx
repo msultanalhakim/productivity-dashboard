@@ -18,16 +18,30 @@ interface ExpenseChartProps {
 }
 
 function groupByWeek(expenses: Expense[]): { name: string; masuk: number; keluar: number }[] {
-  const weeks: Record<string, { masuk: number; keluar: number }> = {}
+  const weeks: Record<string, { masuk: number; keluar: number; weekNum: number }> = {}
+  
   for (const e of expenses) {
     const d = new Date(e.date)
     const weekNum = Math.ceil(d.getDate() / 7)
     const key = `Minggu ${weekNum}`
-    if (!weeks[key]) weeks[key] = { masuk: 0, keluar: 0 }
+    
+    if (!weeks[key]) {
+      weeks[key] = { masuk: 0, keluar: 0, weekNum }
+    }
+    
     if (e.type === "in") weeks[key].masuk += e.amount
     else weeks[key].keluar += e.amount
   }
-  return Object.entries(weeks).map(([name, data]) => ({ name, ...data }))
+  
+  // ⭐ FIX: Sort by week number to ensure correct order (earliest week on left)
+  return Object.entries(weeks)
+    .map(([name, data]) => ({ 
+      name, 
+      masuk: data.masuk, 
+      keluar: data.keluar,
+      weekNum: data.weekNum 
+    }))
+    .sort((a, b) => a.weekNum - b.weekNum)
 }
 
 export function ExpenseChart({ expenses }: ExpenseChartProps) {

@@ -268,9 +268,15 @@ export async function performDailyReset(): Promise<void> {
       dailyNote: yesterdayNote?.note?.trim() || undefined,
     }
     
+    // ⭐ CRITICAL FIX: Reset checkboxes but keep the tasks
+    const resetTasks = state.dailyTasks.map(task => ({
+      ...task,
+      done: false
+    }))
+    
     await saveState({
       dailyHistory: [...state.dailyHistory, newHistoryEntry],
-      dailyTasks: [],
+      dailyTasks: resetTasks, // Keep tasks but reset done status
       mood: null,
       lastDailyReset: today,
     })

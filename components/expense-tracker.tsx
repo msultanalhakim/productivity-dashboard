@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { ChevronLeft, ChevronRight, ArrowDownLeft, ArrowUpRight, Plus, Trash2, X, Wallet, DollarSign } from "lucide-react"
+import { ChevronLeft, ChevronRight, ArrowDownLeft, ArrowUpRight, Plus, Trash2, X, Wallet, Edit2 } from "lucide-react"
 import { GlassCard } from "./glass-card"
 import { EmptyState } from "./empty-state"
+import { ConfirmModal } from "./confirm-modal"
 import { useToast } from "./toast-notification"
 import {
   formatRupiah,
@@ -19,6 +20,7 @@ interface ExpenseTrackerProps {
   expenses: Expense[]
   onAddExpense: (e: Expense) => void
   onDeleteExpense: (id: string) => void
+  onEditExpense?: (id: string, updatedExpense: Expense) => void
   currentMonth: Date
   onMonthChange: (d: Date) => void
 }
@@ -27,6 +29,7 @@ export function ExpenseTracker({
   expenses,
   onAddExpense,
   onDeleteExpense,
+  onEditExpense,
   currentMonth,
   onMonthChange,
 }: ExpenseTrackerProps) {
@@ -35,6 +38,19 @@ export function ExpenseTracker({
   const [amount, setAmount] = useState("")
   const [type, setType] = useState<"in" | "out">("out")
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0])
+  const [date, setDate] = useState("")
+  
+  // ⭐ NEW: Edit state
+  const [editMode, setEditMode] = useState(false)
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null)
+  
+  // ⭐ NEW: Delete confirmation state
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; expenseId: string; expenseLabel: string }>({
+    isOpen: false,
+    expenseId: "",
+    expenseLabel: "",
+  })
+  
   const { toast } = useToast()
 
   const now = new Date()
@@ -68,26 +84,78 @@ export function ExpenseTracker({
     .reduce((s, e) => s + e.amount, 0)
 
   const handleSubmit = () => {
-    if (!label.trim() || !amount) return
-    onAddExpense({
-      id: generateId(),
-      label: label.trim(),
-      amount: Number(amount),
-      type,
-      date: new Date().toISOString(),
-      category,
-    })
+    if (!label.trim() || !amount || !date) return
+    
+    if (editMode && editingExpenseId && onEditExpense) {
+      // Update existing expense
+      onEditExpense(editingExpenseId, {
+        id: editingExpenseId,
+        label: label.trim(),
+        amount: Number(amount),
+        type,
+        date: new Date(date).toISOString(),
+        category,
+      })
+      toast("Transaksi berhasil diupdate", "success")
+    } else {
+      // Add new expense
+      onAddExpense({
+        id: generateId(),
+        label: label.trim(),
+        amount: Number(amount),
+        type,
+        date: new Date(date).toISOString(),
+        category,
+      })
+      toast("Transaksi berhasil disimpan", "success")
+    }
+    
+    resetForm()
+  }
+
+  const resetForm = () => {
     setLabel("")
     setAmount("")
     setType("out")
     setCategory(EXPENSE_CATEGORIES[0])
+    setDate("")
     setShowModal(false)
-    toast("Transaksi berhasil disimpan", "success")
+    setEditMode(false)
+    setEditingExpenseId(null)
+  }
+
+  // ⭐ NEW: Handle edit
+  const handleEdit = (expense: Expense) => {
+    setEditMode(true)
+    setEditingExpenseId(expense.id)
+    setLabel(expense.label)
+    setAmount(expense.amount.toString())
+    setType(expense.type)
+    setCategory(expense.category)
+    // Convert ISO string to YYYY-MM-DD format for input
+    setDate(new Date(expense.date).toISOString().split('T')[0])
+    setShowModal(true)
+  }
+
+  // ⭐ NEW: Show delete confirmation
+  const handleDeleteClick = (expense: Expense) => {
+    setDeleteConfirm({
+      isOpen: true,
+      expenseId: expense.id,
+      expenseLabel: expense.label,
+    })
+  }
+
+  // ⭐ NEW: Confirm delete
+  const handleDeleteConfirm = () => {
+    onDeleteExpense(deleteConfirm.expenseId)
+    setDeleteConfirm({ isOpen: false, expenseId: "", expenseLabel: "" })
+    toast("Transaksi berhasil dihapus", "success")
   }
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape" && showModal) setShowModal(false)
+      if (e.key === "Escape" && showModal) resetForm()
     },
     [showModal]
   )
@@ -96,6 +164,13 @@ export function ExpenseTracker({
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [handleKeyDown])
+
+  // Set default date to today when opening modal in add mode
+  useEffect(() => {
+    if (showModal && !editMode) {
+      setDate(new Date().toISOString().split('T')[0])
+    }
+  }, [showModal, editMode])
 
   return (
     <>
@@ -156,7 +231,10 @@ export function ExpenseTracker({
 
         {/* Add Transaction Button */}
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            setEditMode(false)
+            setShowModal(true)
+          }}
           className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-2 sm:py-2.5 text-xs sm:text-sm text-muted-foreground transition-colors hover:border-cyan hover:text-cyan"
         >
           <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -206,8 +284,18 @@ export function ExpenseTracker({
                     <span className="hidden xs:inline">{e.type === "in" ? "+" : "-"}Rp {formatRupiah(e.amount)}</span>
                     <span className="xs:hidden">{e.type === "in" ? "+" : "-"}{formatRupiah(e.amount)}</span>
                   </span>
+                  
+                  {/* ⭐ NEW: Edit button */}
                   <button
-                    onClick={() => onDeleteExpense(e.id)}
+                    onClick={() => handleEdit(e)}
+                    className="rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:text-cyan group-hover:opacity-100"
+                    aria-label={`Edit ${e.label}`}
+                  >
+                    <Edit2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  </button>
+                  
+                  <button
+                    onClick={() => handleDeleteClick(e)}
                     className="rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:text-crimson group-hover:opacity-100"
                     aria-label={`Hapus ${e.label}`}
                   >
@@ -220,7 +308,7 @@ export function ExpenseTracker({
         </div>
       </GlassCard>
 
-      {/* Modal - tetap sama */}
+      {/* Modal */}
       <AnimatePresence>
         {showModal && (
           <motion.div
@@ -228,7 +316,7 @@ export function ExpenseTracker({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-            onClick={() => setShowModal(false)}
+            onClick={resetForm}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -245,12 +333,16 @@ export function ExpenseTracker({
                       <Wallet className="h-4 w-4 text-foreground" />
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-foreground">Tambah Transaksi</h3>
-                      <p className="text-xs text-muted-foreground">Catat pemasukan atau pengeluaran</p>
+                      <h3 className="text-base font-semibold text-foreground">
+                        {editMode ? "Edit Transaksi" : "Tambah Transaksi"}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {editMode ? "Ubah detail transaksi" : "Catat pemasukan atau pengeluaran"}
+                      </p>
                     </div>
                   </div>
                   <button
-                    onClick={() => setShowModal(false)}
+                    onClick={resetForm}
                     className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                   >
                     <X className="h-4 w-4" />
@@ -340,10 +432,21 @@ export function ExpenseTracker({
                   </select>
                 </div>
 
+                {/* ⭐ NEW: Date input */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Tanggal</label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground transition-colors focus:border-foreground focus:outline-none [color-scheme:dark]"
+                  />
+                </div>
+
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowModal(false)}
+                    onClick={resetForm}
                     className="flex-1 rounded-lg border border-border bg-secondary/50 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
                   >
                     Batal
@@ -351,14 +454,16 @@ export function ExpenseTracker({
                   <button
                     type="button"
                     onClick={handleSubmit}
+                    disabled={!label.trim() || !amount || !date}
                     className={cn(
                       "flex-1 rounded-lg py-2.5 text-sm font-medium text-background transition-all",
                       type === "in"
-                        ? "bg-neon hover:bg-neon/90"
-                        : "bg-cyan hover:bg-cyan/90"
+                        ? "bg-neon hover:bg-neon/90 disabled:bg-neon/50"
+                        : "bg-cyan hover:bg-cyan/90 disabled:bg-cyan/50",
+                      "disabled:cursor-not-allowed"
                     )}
                   >
-                    Simpan
+                    {editMode ? "Update" : "Simpan"}
                   </button>
                 </div>
               </div>
@@ -366,6 +471,16 @@ export function ExpenseTracker({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, expenseId: "", expenseLabel: "" })}
+        onConfirm={handleDeleteConfirm}
+        title="Hapus Transaksi?"
+        description={`Apakah Anda yakin ingin menghapus transaksi "${deleteConfirm.expenseLabel}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus"
+        cancelText="Batal"
+      />
     </>
   )
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Plus, Check, Trash2, X, Save } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { GlassCard } from "./glass-card"
+import { ConfirmModal } from "./confirm-modal"
 import { cn } from "@/lib/utils"
 import { DAYS_ID, generateId, type WeeklyGoal } from "@/lib/store"
 
@@ -80,6 +81,13 @@ export function WeeklyGoals({
   const [showFullscreenCelebration, setShowFullscreenCelebration] = useState(false)
   const [showSaveNotification, setShowSaveNotification] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  
+  // ⭐ NEW: Delete confirmation state
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; goalId: string; goalText: string }>({
+    isOpen: false,
+    goalId: "",
+    goalText: "",
+  })
 
   const today = new Date()
   const dayIndex = today.getDay()
@@ -116,7 +124,7 @@ export function WeeklyGoals({
       setDailyNote("")
       setIsNoteLoaded(false)
     }
-  }, [selectedDay, dailyNotes]) // Tambahkan dailyNotes sebagai dependency
+  }, [selectedDay, dailyNotes])
 
   const handleToggleGoal = (id: string) => {
     const goal = goals.find((g) => g.id === id)
@@ -144,7 +152,6 @@ export function WeeklyGoals({
     setIsSaving(true)
     
     try {
-      // Save note (even if empty, to allow clearing)
       await onSaveDailyNote(selectedDay, dailyNote.trim())
       playSuccessSound()
       setShowSaveNotification(true)
@@ -169,9 +176,23 @@ export function WeeklyGoals({
     setIsNoteLoaded(false)
   }
 
-  // Handler untuk textarea
   const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setDailyNote(e.target.value)
+  }
+  
+  // ⭐ NEW: Show delete confirmation
+  const handleDeleteClick = (goal: WeeklyGoal) => {
+    setDeleteConfirm({
+      isOpen: true,
+      goalId: goal.id,
+      goalText: goal.text,
+    })
+  }
+
+  // ⭐ NEW: Confirm delete
+  const handleDeleteConfirm = () => {
+    onDeleteGoal(deleteConfirm.goalId)
+    setDeleteConfirm({ isOpen: false, goalId: "", goalText: "" })
   }
 
   return (
@@ -192,102 +213,109 @@ export function WeeklyGoals({
             const previewGoals = dayGoals.slice(0, 2)
             const hasMore = dayGoals.length > 2
             
-            // Check if there's a note for today's date and this day
-            const todayDate = getTodayDateString()
-            const hasNote = dailyNotes.some(n => n.date === todayDate && n.day === day && n.note.trim())
-            
             return (
-              <button
+              <motion.button
                 key={day}
                 onClick={() => handleOpenModal(day)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 className={cn(
-                  "flex flex-col gap-2.5 rounded-xl border p-4 text-left transition-all hover:scale-[1.02]",
+                  "group relative flex flex-col gap-2 rounded-xl border-2 p-3 text-left transition-all",
                   isToday
-                    ? "border-cyan/40 bg-cyan/5 hover:border-cyan/60 hover:bg-cyan/10"
-                    : "border-border bg-secondary/30 hover:border-border/60 hover:bg-secondary/50"
+                    ? "border-neon bg-neon/5 shadow-[0_0_15px_rgba(145,255,145,0.15)]"
+                    : "border-border bg-secondary/30 hover:border-neon/40 hover:bg-secondary/50"
                 )}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className={cn(
-                      "text-sm font-bold uppercase tracking-wide",
-                      isToday ? "text-cyan" : "text-muted-foreground"
-                    )}
-                  >
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <span className={cn(
+                    "text-sm font-semibold",
+                    isToday ? "text-neon" : "text-foreground"
+                  )}>
                     {day}
                   </span>
-                  <div className="flex items-center gap-1.5">
-                    {totalCount > 0 && (
-                      <span className={cn(
-                        "rounded-full px-2 py-0.5 text-xs font-semibold",
-                        completedCount === totalCount
-                          ? "bg-neon/15 text-neon"
-                          : "bg-secondary text-muted-foreground"
-                      )}>
-                        {completedCount}/{totalCount}
-                      </span>
-                    )}
-                    {hasNote && (
-                      <div className="h-1.5 w-1.5 rounded-full bg-cyan" />
-                    )}
-                    {isToday && (
-                      <span className="rounded-full bg-cyan/20 px-2 py-0.5 text-[10px] font-bold text-cyan">
-                        HARI INI
-                      </span>
-                    )}
-                  </div>
+                  {isToday && (
+                    <span className="rounded-full bg-neon px-2 py-0.5 text-[10px] font-bold text-background">
+                      Hari Ini
+                    </span>
+                  )}
                 </div>
 
-                {/* Preview Goals */}
-                {previewGoals.length > 0 ? (
-                  <div className="flex flex-col gap-2">
-                    {previewGoals.map((g) => (
-                      <div
-                        key={g.id}
-                        className={cn(
-                          "flex items-start gap-2.5 text-sm",
-                          g.done ? "text-muted-foreground/70" : "text-foreground/90"
-                        )}
-                      >
-                        <div className={cn(
-                          "mt-0.5 h-4 w-4 shrink-0 rounded border",
-                          g.done ? "border-neon/50 bg-neon/10" : "border-muted-foreground/30"
-                        )}>
-                          {g.done && <Check className="h-4 w-4 text-neon" />}
-                        </div>
+                {/* Progress */}
+                {totalCount > 0 ? (
+                  <>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Progress</span>
                         <span className={cn(
-                          "line-clamp-2 leading-relaxed",
-                          g.done && "line-through"
+                          "font-semibold",
+                          completedCount === totalCount ? "text-neon" : "text-muted-foreground"
                         )}>
-                          {g.text}
+                          {completedCount}/{totalCount}
                         </span>
                       </div>
-                    ))}
-                    {hasMore && (
-                      <span className="text-sm text-muted-foreground/60 pl-6">
-                        +{dayGoals.length - 2} lainnya...
-                      </span>
-                    )}
-                  </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-background/50">
+                        <div 
+                          className={cn(
+                            "h-full transition-all duration-300",
+                            completedCount === totalCount ? "bg-neon" : "bg-cyan"
+                          )}
+                          style={{ width: `${(completedCount / totalCount) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Goal preview */}
+                    <div className="space-y-1">
+                      {previewGoals.map((goal) => (
+                        <div key={goal.id} className="flex items-start gap-1.5">
+                          <div className={cn(
+                            "mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full",
+                            goal.done ? "bg-neon" : "bg-muted-foreground/40"
+                          )} />
+                          <span className={cn(
+                            "text-xs leading-tight line-clamp-1",
+                            goal.done ? "text-muted-foreground line-through" : "text-foreground/80"
+                          )}>
+                            {goal.text}
+                          </span>
+                        </div>
+                      ))}
+                      {hasMore && (
+                        <p className="text-[10px] text-muted-foreground/60 pl-3">
+                          +{dayGoals.length - 2} goal lainnya
+                        </p>
+                      )}
+                    </div>
+                  </>
                 ) : (
-                  <span className="text-sm text-muted-foreground/50">
+                  <p className="text-xs text-muted-foreground/60">
                     Belum ada goal
-                  </span>
+                  </p>
                 )}
-              </button>
+                
+                {/* Hover indicator */}
+                <div className={cn(
+                  "absolute bottom-2 right-2 text-[10px] font-medium transition-opacity",
+                  isToday ? "text-neon" : "text-cyan",
+                  "opacity-0 group-hover:opacity-100"
+                )}>
+                  Klik untuk buka →
+                </div>
+              </motion.button>
             )
           })}
         </div>
       </GlassCard>
 
-      {/* Day Detail Modal */}
+      {/* Modal */}
       <AnimatePresence>
         {selectedDay && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
             onClick={handleCloseModal}
           >
             <motion.div
@@ -296,25 +324,34 @@ export function WeeklyGoals({
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ duration: 0.15 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-card shadow-xl max-h-[90vh] flex flex-col"
+              className="flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl max-h-[85vh]"
             >
               {/* Header */}
               <div className="border-b border-border px-6 py-4 flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-cyan/20 to-neon/20">
-                      <span className="text-lg font-bold text-foreground">
-                        {selectedDay.slice(0, 2).toUpperCase()}
-                      </span>
+                    <div className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-lg",
+                      selectedDay === todayId
+                        ? "bg-neon/10"
+                        : "bg-secondary"
+                    )}>
+                      <Check className={cn(
+                        "h-5 w-5",
+                        selectedDay === todayId ? "text-neon" : "text-foreground"
+                      )} />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground">
-                        Goals - {selectedDay}
+                      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                        Goals untuk {selectedDay}
+                        {selectedDay === todayId && (
+                          <span className="rounded-full bg-neon px-2 py-0.5 text-[10px] font-bold text-background">
+                            Hari Ini
+                          </span>
+                        )}
                       </h3>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedDay === todayId && "Hari ini • "}
-                        {isSelectedDayPassed && "Hari sudah berlalu • "}
-                        {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long" })}
+                      <p className="text-sm text-muted-foreground">
+                        {goals.filter((g) => g.day === selectedDay).length} goal total
                       </p>
                     </div>
                   </div>
@@ -327,29 +364,26 @@ export function WeeklyGoals({
                 </div>
               </div>
 
-              {/* Content - Scrollable */}
-              <div className="space-y-5 p-6 overflow-y-auto flex-1">
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                 {/* Goals List */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold text-foreground">Daftar Goals</label>
-                    <span className="text-xs text-muted-foreground">
-                      {goals.filter((g) => g.day === selectedDay && g.done).length}/
-                      {goals.filter((g) => g.day === selectedDay).length} selesai
-                    </span>
-                  </div>
-                  
-                  <div className="flex flex-col gap-2.5">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Daftar Goals
+                  </label>
+                  <div className="space-y-2">
                     {goals
                       .filter((g) => g.day === selectedDay)
                       .map((g) => (
                         <div
                           key={g.id}
                           className={cn(
-                            "flex items-center gap-3 rounded-lg p-3.5 transition-all",
-                            g.done 
-                              ? "bg-neon/5 border border-neon/20" 
-                              : "bg-secondary/50 border border-transparent hover:border-border"
+                            "flex items-center gap-3 rounded-lg border-2 p-3.5 transition-all",
+                            g.done
+                              ? "border-neon/30 bg-neon/5"
+                              : isSelectedDayPassed
+                                ? "border-border/50 bg-secondary/20"
+                                : "border-border bg-secondary/40 hover:border-cyan/40"
                           )}
                         >
                           <button
@@ -379,7 +413,7 @@ export function WeeklyGoals({
                             {g.text}
                           </span>
                           <button
-                            onClick={() => onDeleteGoal(g.id)}
+                            onClick={() => handleDeleteClick(g)}
                             disabled={isSelectedDayPassed}
                             className={cn(
                               "rounded-lg p-1.5 transition-all",
@@ -517,7 +551,7 @@ export function WeeklyGoals({
         )}
       </AnimatePresence>
 
-      {/* Save Notification - Enhanced */}
+      {/* Save Notification */}
       <AnimatePresence>
         {showSaveNotification && (
           <motion.div
@@ -549,6 +583,17 @@ export function WeeklyGoals({
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, goalId: "", goalText: "" })}
+        onConfirm={handleDeleteConfirm}
+        title="Hapus Goal?"
+        description={`Apakah Anda yakin ingin menghapus goal "${deleteConfirm.goalText}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus"
+        cancelText="Batal"
+      />
     </>
   )
 }

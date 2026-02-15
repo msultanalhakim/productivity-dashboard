@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Trash2, Check } from "lucide-react"
 import { GlassCard } from "./glass-card"
 import { EmptyState } from "./empty-state"
+import { ConfirmModal } from "./confirm-modal"
 import { cn } from "@/lib/utils"
 import type { DailyTask } from "@/lib/store"
 
@@ -41,6 +42,13 @@ export function DailyTasks({ tasks, onToggle, onAdd, onDelete, hideInput = false
   const [animatingId, setAnimatingId] = useState<string | null>(null)
   const [celebratingId, setCelebratingId] = useState<string | null>(null)
   const [showFullscreenCelebration, setShowFullscreenCelebration] = useState(false)
+  
+  // ⭐ NEW: Delete confirmation state
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; taskId: string; taskText: string }>({
+    isOpen: false,
+    taskId: "",
+    taskText: "",
+  })
 
   const handleToggle = (id: string) => {
     const task = tasks.find((t) => t.id === id)
@@ -62,6 +70,21 @@ export function DailyTasks({ tasks, onToggle, onAdd, onDelete, hideInput = false
     if (!newTask.trim()) return
     onAdd(newTask.trim())
     setNewTask("")
+  }
+
+  // ⭐ NEW: Show delete confirmation
+  const handleDeleteClick = (task: DailyTask) => {
+    setDeleteConfirm({
+      isOpen: true,
+      taskId: task.id,
+      taskText: task.text,
+    })
+  }
+
+  // ⭐ NEW: Confirm delete
+  const handleDeleteConfirm = () => {
+    onDelete(deleteConfirm.taskId)
+    setDeleteConfirm({ isOpen: false, taskId: "", taskText: "" })
   }
 
   const done = tasks.filter((t) => t.done).length
@@ -140,7 +163,7 @@ export function DailyTasks({ tasks, onToggle, onAdd, onDelete, hideInput = false
                   </span>
                 </div>
                 <button
-                  onClick={() => onDelete(task.id)}
+                  onClick={() => handleDeleteClick(task)}
                   className="rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:text-crimson group-hover:opacity-100"
                   aria-label={`Hapus ${task.text}`}
                 >
@@ -163,6 +186,16 @@ export function DailyTasks({ tasks, onToggle, onAdd, onDelete, hideInput = false
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, taskId: "", taskText: "" })}
+        onConfirm={handleDeleteConfirm}
+        title="Hapus Tugas?"
+        description={`Apakah Anda yakin ingin menghapus tugas "${deleteConfirm.taskText}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus"
+        cancelText="Batal"
+      />
     </>
   )
 }
