@@ -39,18 +39,16 @@ export function ExpenseTracker({
   const [type, setType] = useState<"in" | "out">("out")
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0])
   const [date, setDate] = useState("")
-  
-  // ⭐ NEW: Edit state
+
   const [editMode, setEditMode] = useState(false)
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null)
-  
-  // ⭐ NEW: Delete confirmation state
+
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; expenseId: string; expenseLabel: string }>({
     isOpen: false,
     expenseId: "",
     expenseLabel: "",
   })
-  
+
   const { toast } = useToast()
 
   const now = new Date()
@@ -71,10 +69,16 @@ export function ExpenseTracker({
     onMonthChange(d)
   }
 
-  const filteredExpenses = expenses.filter((e) => {
-    const d = new Date(e.date)
-    return d.getMonth() === currentMonth.getMonth() && d.getFullYear() === currentMonth.getFullYear()
-  })
+  // ✅ FIX 1: Sort by latest date (descending)
+  const filteredExpenses = expenses
+    .filter((e) => {
+      const d = new Date(e.date)
+      return (
+        d.getMonth() === currentMonth.getMonth() &&
+        d.getFullYear() === currentMonth.getFullYear()
+      )
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   const totalIn = filteredExpenses
     .filter((e) => e.type === "in")
@@ -85,20 +89,28 @@ export function ExpenseTracker({
 
   const handleSubmit = () => {
     if (!label.trim() || !amount || !date) return
-    
-    if (editMode && editingExpenseId && onEditExpense) {
-      // Update existing expense
-      onEditExpense(editingExpenseId, {
+
+    if (editMode && editingExpenseId) {
+      const updatedExpense: Expense = {
         id: editingExpenseId,
         label: label.trim(),
         amount: Number(amount),
         type,
         date: new Date(date).toISOString(),
         category,
-      })
+      }
+
+      // ✅ FIX 2: Properly handle edit — use onEditExpense if available,
+      // otherwise fallback to delete old + add new (balance stays correct)
+      if (onEditExpense) {
+        onEditExpense(editingExpenseId, updatedExpense)
+      } else {
+        onDeleteExpense(editingExpenseId)
+        onAddExpense({ ...updatedExpense, id: generateId() })
+      }
+
       toast("Transaksi berhasil diupdate", "success")
     } else {
-      // Add new expense
       onAddExpense({
         id: generateId(),
         label: label.trim(),
@@ -109,7 +121,7 @@ export function ExpenseTracker({
       })
       toast("Transaksi berhasil disimpan", "success")
     }
-    
+
     resetForm()
   }
 
@@ -124,7 +136,6 @@ export function ExpenseTracker({
     setEditingExpenseId(null)
   }
 
-  // ⭐ NEW: Handle edit
   const handleEdit = (expense: Expense) => {
     setEditMode(true)
     setEditingExpenseId(expense.id)
@@ -132,12 +143,10 @@ export function ExpenseTracker({
     setAmount(expense.amount.toString())
     setType(expense.type)
     setCategory(expense.category)
-    // Convert ISO string to YYYY-MM-DD format for input
-    setDate(new Date(expense.date).toISOString().split('T')[0])
+    setDate(new Date(expense.date).toISOString().split("T")[0])
     setShowModal(true)
   }
 
-  // ⭐ NEW: Show delete confirmation
   const handleDeleteClick = (expense: Expense) => {
     setDeleteConfirm({
       isOpen: true,
@@ -146,7 +155,6 @@ export function ExpenseTracker({
     })
   }
 
-  // ⭐ NEW: Confirm delete
   const handleDeleteConfirm = () => {
     onDeleteExpense(deleteConfirm.expenseId)
     setDeleteConfirm({ isOpen: false, expenseId: "", expenseLabel: "" })
@@ -165,10 +173,9 @@ export function ExpenseTracker({
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [handleKeyDown])
 
-  // Set default date to today when opening modal in add mode
   useEffect(() => {
     if (showModal && !editMode) {
-      setDate(new Date().toISOString().split('T')[0])
+      setDate(new Date().toISOString().split("T")[0])
     }
   }, [showModal, editMode])
 
@@ -270,7 +277,11 @@ export function ExpenseTracker({
                   <div className="min-w-0">
                     <p className="text-xs sm:text-sm font-medium text-foreground truncate">{e.label}</p>
                     <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                      {e.category} &middot; {new Date(e.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                      {e.category} &middot;{" "}
+                      {new Date(e.date).toLocaleDateString("id-ID", {
+                        day: "numeric",
+                        month: "short",
+                      })}
                     </p>
                   </div>
                 </div>
@@ -281,11 +292,15 @@ export function ExpenseTracker({
                       e.type === "in" ? "text-neon" : "text-crimson"
                     )}
                   >
-                    <span className="hidden xs:inline">{e.type === "in" ? "+" : "-"}Rp {formatRupiah(e.amount)}</span>
-                    <span className="xs:hidden">{e.type === "in" ? "+" : "-"}{formatRupiah(e.amount)}</span>
+                    <span className="hidden xs:inline">
+                      {e.type === "in" ? "+" : "-"}Rp {formatRupiah(e.amount)}
+                    </span>
+                    <span className="xs:hidden">
+                      {e.type === "in" ? "+" : "-"}
+                      {formatRupiah(e.amount)}
+                    </span>
                   </span>
-                  
-                  {/* ⭐ NEW: Edit button */}
+
                   <button
                     onClick={() => handleEdit(e)}
                     className="rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:text-cyan group-hover:opacity-100"
@@ -293,7 +308,7 @@ export function ExpenseTracker({
                   >
                     <Edit2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </button>
-                  
+
                   <button
                     onClick={() => handleDeleteClick(e)}
                     className="rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:text-crimson group-hover:opacity-100"
@@ -411,9 +426,7 @@ export function ExpenseTracker({
                     />
                   </div>
                   {amount && !isNaN(Number(amount)) && (
-                    <p className="text-xs text-muted-foreground">
-                      {formatRupiah(Number(amount))}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{formatRupiah(Number(amount))}</p>
                   )}
                 </div>
 
@@ -432,7 +445,6 @@ export function ExpenseTracker({
                   </select>
                 </div>
 
-                {/* ⭐ NEW: Date input */}
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground">Tanggal</label>
                   <input
