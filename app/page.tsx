@@ -277,8 +277,18 @@ function CommandCenterInner() {
   const expenseThisMonth = thisMonthExpenses
     .filter((e) => e.type === "out")
     .reduce((s, e) => s + e.amount, 0)
-  const saldo = incomeThisMonth - expenseThisMonth
 
+  // ⭐ SALDO KUMULATIF: Hitung dari semua transaksi, bukan hanya bulan ini
+  // Saldo = total semua pemasukan - total semua pengeluaran (seluruh waktu)
+  const totalAllIncome = expenses
+    .filter((e) => e.type === "in")
+    .reduce((s, e) => s + e.amount, 0)
+  const totalAllExpense = expenses
+    .filter((e) => e.type === "out")
+    .reduce((s, e) => s + e.amount, 0)
+  const saldo = totalAllIncome - totalAllExpense
+
+  // lastMonthSaldo = saldo kumulatif sampai akhir bulan lalu (sebelum bulan ini)
   const lastMonth = new Date(now)
   lastMonth.setMonth(lastMonth.getMonth() - 1)
   const lastMonthExpenses = expenses.filter((e) => {
@@ -291,7 +301,8 @@ function CommandCenterInner() {
   const lastMonthExpense = lastMonthExpenses
     .filter((e) => e.type === "out")
     .reduce((s, e) => s + e.amount, 0)
-  const lastMonthSaldo = lastMonthIncome - lastMonthExpense
+  // Saldo bulan lalu = saldo kumulatif sampai akhir bulan lalu
+  const lastMonthSaldo = saldo - incomeThisMonth + expenseThisMonth
 
   const tasksDone = dailyTasks.filter((t) => t.done).length
   const tasksTotal = dailyTasks.length
